@@ -5,7 +5,8 @@ import numpy as np
 from params import Params
 
 from problem.instance import Instance
-from algorithm.load_modules import find_module
+from utilities.load_modules import find_module
+from operators.operator_template import NullMutation
 
 from pymoo.algorithms.moo.moead import MOEAD
 from pymoo.core.evaluator import Evaluator

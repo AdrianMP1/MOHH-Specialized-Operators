@@ -119,3 +119,68 @@ class Population():
         
         return phenotypes
     
+
+class Individual():
+
+    def __init__(self, genome: list, tree: object, map_required: bool=True) -> None:
+        """
+        Create a new individual.
+
+        @param genome: Individual's genome.
+        @param tree: Derivation tree.
+        @param map_required: Bool to indicate if it needs to be mapped first.
+        """
+
+        # Load params
+        params = Params()
+
+        if map_required:
+            # Map the individual
+            self.phenotype, self.genome, self.tree, self.nodes, self.invalid, \
+            self.depth, self.used_codons = mapper(genome, tree)
+
+        else:
+            self.genome, self.tree = genome, tree
+        
+        # Add individual information
+        self.name = None
+        self.evaluated = False
+        self.is_offspring = False
+        self.runtime_error = None
+
+        # Optimization information
+        self.maximize = params["OPTIMIZATION_KIND"]
+
+        # Determine sign for domination comparison
+        self.sign = 1
+        if not(self.maximize):
+            self.sign = -1
+        
+        # Variables to store results
+        self.hypervolumes = dict()
+        self.fitness_values = dict()
+
+        self.pareto_sets = dict()
+        self.pareto_fronts = dict()
+
+        self.unique_solutions = dict()
+        self.weak_non_dominated = dict()
+        self.strong_non_dominated = dict()
+    
+    def __len__(self):
+        """
+        Returns the genome length of the individual.
+        """
+        return len(self.genome)
+    
+    def __str__(self):
+        """
+        Returns individuals phenotype
+        """
+        return self.phenotype
+    
+    def __repr__(self) -> str:
+        """
+        Shows individuals phenotype
+        """
+        return f"Individual({self.phenotype})"

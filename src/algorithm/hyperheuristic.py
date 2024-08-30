@@ -141,7 +141,6 @@ class HyperHeuristic():
                 instance.non_dominated_front = \
                     instance.non_dominated_front.union([tuple(element) for element in pareto_front.tolist()])
     
-
     def compute_metrics(self):
         """
         Compute an indicator metric and rank the individuals.

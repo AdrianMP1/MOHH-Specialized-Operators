@@ -212,12 +212,69 @@ class HyperHeuristic():
 
         return scores
 
-    def evolutionary_step(self):
+    def evolutionary_step(self, scores: list):
         """
         Compute an evolutionary step.
         Selection, Crossover, Mutation.
         """
-        pass
+        
+        # Extract current genomes from population
+        genomes = copy.deepcopy(self.population.get_genomes())
+
+        # Extract current phenotypes from population
+        phenotypes = copy.deepcopy(self.population.get_phenotypes())
+
+        # Create variable for new individuals
+        offspring = []
+
+        # Apply Genetic Operators
+        while len(offspring) < self.num_offsprings:
+
+            # Work with genomes only
+            parents = self.selection(genomes, scores)
+            children = self.crossover(parents)
+            children = self.mutation(children)
+            
+            for child in children:
+                # Create new individual.
+                ind = Individual(child, None)
+                
+                # Verify if individual is invalid or repeated
+                if ind.invalid or ind.phenotype in phenotypes:
+                    continue
+                
+                # Verify if it outputs valid values.
+                elif test_individual(ind.phenotype, self.solution_type) == False:
+                    continue
+
+                # Verify individual hasn't already be created
+                elif ind.phenotype in self.already_seen:
+                    continue
+                
+                # Offspring is valid and outputs admisible results.
+                offspring.append(ind)
+
+                # Add it to already seen
+                self.already_seen.add(ind.phenotype)
+
+                # Hard constraint, don't exceed num_offsprings.
+                if len(offspring) == self.num_offsprings:
+                    break
+
+        # Name individuals.
+        for child in offspring:
+
+            # Set child as offspring.
+            child.is_offspring = True
+
+            # Set individual name.
+            child.name = f"Individual_{self.population.num_individuals_created+1:06d}"
+            
+            # Increase counter.
+            self.population.num_individuals_created += 1
+        
+        # Append the new generation to the current one.
+        self.population.individuals.extend(offspring)
 
     def replace_step(self):
         """

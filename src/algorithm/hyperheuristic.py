@@ -3,8 +3,14 @@ import copy
 import time
 from tqdm import tqdm
 
+# Classes
 from params import Params
+from saver import PopulationSaver
+
+from problem.instance import Instance
 from algorithm.multiobjective import MOSolver
+from representation.population import Population
+from representation.population import Individual
 
 # Auxiliar functions
 from utilities.load_modules import find_module
@@ -13,9 +19,6 @@ from utilities.algorithm.MO import compute_hypervolume
 from utilities.algorithm.MO import non_dominated_sorting
 from utilities.algorithm.HH_auxiliars import compute_rank
 from utilities.algorithm.HH_auxiliars import test_individual
-
-from problem.instance import Instance
-from representation.population import Population
 
 class HyperHeuristic():
 
@@ -328,6 +331,7 @@ class HyperHeuristic():
         """
         
         # Load population saver
+        population_saver = PopulationSaver()
 
         # Start timer
         start_time = time.time()
@@ -348,7 +352,8 @@ class HyperHeuristic():
         scores = self.compute_metrics()
 
         # Save population and instance data
-        
+        population_saver.save_population(self.population, generation=0)
+        population_saver.save_consolidated_fronts(self.instances, generation=0)
 
         for gen in range(1, self.num_generations + 1):
 
@@ -368,14 +373,17 @@ class HyperHeuristic():
             scores = self.compute_metrics()
 
             # Save offspring in disk
+            population_saver.save_population(self.population, generation=gen-1)
 
             # Replace current population with offsprings.
-            self.replace_step()
+            scores = self.replace_step(scores)
 
             # Note: Replace deletes the worst n individuals in the population,
             # therefore, population has now a size of N.
 
             # Save current population in disk
+            population_saver.save_population(self.population, generation=gen)
+            population_saver.save_consolidated_fronts(self.instances, generation=gen)
             
             print(f"Best Individual: {self.population.individuals[0].phenotype}")
 

@@ -6,6 +6,7 @@ from tqdm import tqdm
 from params import Params
 
 from algorithm.load_modules import find_module
+from algorithm.multiobjective import MOSolver
 
 from problem.instance import Instance
 from representation.population import Population

@@ -73,6 +73,8 @@ class Tree():
         :return: The array of all nodes that match the target.
         """
 
+        params = Params()
+
         if self.root in target:
             # Check if the current node matches the target.
 

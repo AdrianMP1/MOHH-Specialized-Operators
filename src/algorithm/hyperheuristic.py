@@ -277,8 +277,50 @@ class HyperHeuristic():
 
     def replace_step(self):
         """
+        Apply replacement with elitism.
         """
-        pass
+        # Get the individuals list
+        #individuals = self.population.individuals
+        
+        # Get the current population
+        population = self.population.get_population()
+
+        # Get the current offspring
+        offspring = self.population.get_offspring()
+
+        # Elitism size
+        elitism_size = len(population) - len(offspring)
+
+        # Assuming the order is conserved...
+        paired_population = list(zip(population, scores[:len(population)]))
+
+        paired_offspring = list(zip(offspring, scores[len(population):]))
+
+        # Sort population
+        sorted_population = sorted(paired_population, key=lambda x: x[1])
+
+        # Remove the last n individuals with worse score
+        preserved_population = sorted_population[:elitism_size]
+
+        # Merge preserved population with offsprings
+        preserved_population.extend(paired_offspring)
+
+        # Sort final population
+        final_pairs = sorted(preserved_population, key=lambda x: x[1])
+
+        # Extract population and scores
+        new_population = [ind for ind, _ in final_pairs] 
+
+        scores = [score for _, score in final_pairs]
+
+        # Update population
+        self.population.individuals = new_population
+
+        # Set individuals as not offsprings
+        for individual in self.population.individuals:
+            individual.is_offspring = False
+
+        return scores
 
     def run(self):
         """

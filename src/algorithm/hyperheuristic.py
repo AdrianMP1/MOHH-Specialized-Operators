@@ -46,6 +46,10 @@ class HyperHeuristic():
         Load a genetic operator to the algorithm.
         Choose between: selection, crossover, mutation,
         replacement and initialization.
+
+        @param operator_type: Choose between selection, crossover,
+        mutation, replacement and initialization
+        @param operator_name: Operator name.
         """
 
         operator_type = operator_type.lower()
@@ -66,6 +70,8 @@ class HyperHeuristic():
     def load_instances(self, instance_paths: list) -> None:
         """
         Load instance paths, and create instance objects.
+
+        @param instance_paths: List with instances file paths.
         """
         # Create an instance object per file.
         self.instances = []
@@ -89,7 +95,45 @@ class HyperHeuristic():
         """
         Evaluates the individuals by solving the instances.
         """
-        pass
+        
+        # Evaluate individuals
+        for individual in tqdm(self.population.non_evaluated()):
+
+            # Create a MOSolver for the individual
+            solver = MOSolver(seed=self.seed)
+            solver.load_operator("operator_template", "HH_Operator",
+                                 operator=individual.phenotype,
+                                 solution_type=self.solution_type,
+                                 prob=self.mo_cross_prob)
+            solver.load_operator("mutation", "NullMutation")
+
+            for instance in self.instances:
+                
+                # Send the instance to the MO solver
+                solver.load_instance(instance)
+
+                # Start the model
+                solver.start_model(model_name=self.mo_model_name)
+
+                # Solve the instance
+                results = solver.solve_instance()
+
+                # Extract results
+                pareto_set, pareto_front = results[:2]
+                weak_non_dominated, unique_solutions, strong_non_dominated = results[2:]
+
+                # Store results in the individual object
+                instance_name = instance.instance_name
+                individual.pareto_sets[instance_name] = pareto_set
+                individual.pareto_fronts[instance_name] = pareto_front
+                individual.unique_solutions[instance_name] = unique_solutions
+                individual.weak_non_dominated[instance_name] = weak_non_dominated
+                individual.strong_non_dominated[instance_name] = strong_non_dominated
+
+                # Add front to the consolidated
+                instance.non_dominated_front = \
+                    instance.non_dominated_front.union([tuple(element) for element in pareto_front.tolist()])
+    
 
     def compute_metrics(self):
         """
@@ -121,13 +165,16 @@ class HyperHeuristic():
 
         print("Generation 0.")
         print("Start initial population.")
+
         # Create initial population.
         self.population.initialize_population(self.population_size)
+        
         # Store phenotypes in memory.
         self.already_seen = self.already_seen.union(self.population.get_phenotypes())
 
         print("Evaluating initial population...")
-        # Evaluate the initial population
+        
+        # Evaluate the initial population and compute metrics.
         self.evaluation_step()
         scores = self.compute_metrics()
 
@@ -140,6 +187,12 @@ class HyperHeuristic():
 
             # Generate offsprings
             self.evaluation_step(scores)
+
+            # Note: Evolutionary step has increased the size from N to N + n.
+            # Evaluation will skip the already evaluated N individuals,
+            # and just evaluate the rest n.
+            # If a nadir point is modified, compute metrics will recompute HVs
+            # for all the individuals (N+n), else just n new individuals.
 
             # Evaluate offsprings
             self.evaluation_step()
@@ -158,4 +211,10 @@ class HyperHeuristic():
             print(f"Best Individual: {self.population.individuals[0].phenotype}")
 
         # Print total time
-        print("\n\n Total time:")
+        end = time.time()
+        seconds = round(end - start_time, 2)
+        minutes = round(seconds / 60, 2)
+        hours = round(minutes / 60, 2)
+        print(f"\n\n Total time: {seconds} seconds.")
+        print(f"Minutes: {minutes}")
+        print(f"Hours: {hours}")

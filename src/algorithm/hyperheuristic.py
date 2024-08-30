@@ -278,7 +278,7 @@ class HyperHeuristic():
         # Append the new generation to the current one.
         self.population.individuals.extend(offspring)
 
-    def replace_step(self):
+    def replace_step(self, scores: list) -> list:
         """
         Apply replacement with elitism.
         """
@@ -360,7 +360,7 @@ class HyperHeuristic():
             print(f"\nGeneration {gen}/{self.num_generations}")
 
             # Generate offsprings
-            self.evaluation_step(scores)
+            self.evolutionary_step(scores)
 
             # Note: Evolutionary step has increased the size from N to N + n.
             # Evaluation will skip the already evaluated N individuals,

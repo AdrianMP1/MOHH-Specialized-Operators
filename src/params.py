@@ -12,9 +12,9 @@ machine_name = hostname[0]
 hh_params = {
     # ------------
     # EVOLUTIONARY PARAMETERS
-    'POPULATION_SIZE': 50,
-    'GENERATIONS': 30,
-    'ELITE_SIZE': 20,
+    'POPULATION_SIZE': 20,
+    'GENERATIONS': 20,
+    'ELITE_SIZE': 5,
 
     # ------------
     # INDIVIDUALS PARAMETERS
@@ -27,7 +27,6 @@ hh_params = {
     'CODON_SIZE': 1000,
     'INIT_GENOME_LENGTH': 200,
     'MAX_GENOME_LENGTH': None,
-    
     'MAX_WRAPS': 0,
 
     # ------------
@@ -49,7 +48,8 @@ hh_params = {
     # Set crossover probability
     'CROSSOVER_PROBABILITY': 1.0,
     # Operator parameters
-    'K_POINTS': 1,
+    'CROSSOVER_K_POINTS': 1,
+    'CROSSOVER_PARENTS': 2,
 
     # ------------
     # MUTATION
@@ -127,7 +127,9 @@ grammar_params = {
 misc_params = {
     # ------------
     # Set machine name
-    'MACHINE': machine_name
+    'MACHINE': machine_name,
+
+    "SAVE": True
 }
 
 params_dict = dict(hh_params, **mo_params, **problem_params, **grammar_params, **misc_params)

@@ -1,0 +1,6 @@
+# Grammar for simple crossover operators
+<expr> ::= (<expr> <op> <expr>)|<binary_func>(<expr>,<expr>)|<unary_func>(<expr>)|<var>
+<op> ::= +|-
+<var> ::= x|y
+<unary_func> ::= sin|cos
+<binary_func> ::= convolution|masked_cross|one_point

@@ -130,7 +130,7 @@ misc_params = {
     'MACHINE': machine_name
 }
 
-params = dict(hh_params, **mo_params, **problem_params, **grammar_params, **misc_params)
+params_dict = dict(hh_params, **mo_params, **problem_params, **grammar_params, **misc_params)
 
 class Params:
     _instance = None # Store singleton instance
@@ -176,3 +176,52 @@ class Params:
     def items(self):
         return self._params.items()
     
+
+def load_params():
+    pass
+
+
+def set_params():
+
+    # Initialize singleton object with params
+    params = Params()
+    params.update_params(params_dict)
+
+    # Load Grammar & Saver
+    from representation import grammar
+    from saver import PopulationSaver
+
+    # Get actual time
+    start = datetime.now()
+
+    # Set random seed
+    if params["RANDOM_SEED"] is None:
+        params["RANDOM_SEED"] = int(start.microsecond)
+
+    random.seed(params["RANDOM_SEED"])
+
+    # Generate a timestamp to name folder
+    hm = "%02d%02d" % (start.hour, start.minute)
+    params["TIME_STAMP"] = "_".join([gethostname(),
+                                     str(start.year),
+                                     str(start.month),
+                                     str(start.day), hm,
+                                     str(params["RANDOM_SEED"])])
+    
+    print("\nStart:\t", start, "\n")
+
+    # Generate save folders
+    if params["SAVE"]:
+        save = PopulationSaver()
+
+    # Set Genome operations
+    params["GENOME_OPERATIONS"] = True
+
+    # Set the generation size (Elitism)
+    params["GENERATION_SIZE"] = params["POPULATION_SIZE"] - \
+                                params["ELITE_SIZE"]
+    
+    # Parse grammar file and set grammar class
+    params["BNF_GRAMMAR"] = grammar.Grammar(
+        os.path.join("grammars", params["GRAMMAR_FILE"])
+    )

@@ -4,9 +4,15 @@ import time
 from tqdm import tqdm
 
 from params import Params
-
-from algorithm.load_modules import find_module
 from algorithm.multiobjective import MOSolver
+
+# Auxiliar functions
+from utilities.load_modules import find_module
+from utilities.algorithm.MO import compute_nadir_point
+from utilities.algorithm.MO import compute_hypervolume
+from utilities.algorithm.MO import non_dominated_sorting
+from utilities.algorithm.HH_auxiliars import compute_rank
+from utilities.algorithm.HH_auxiliars import test_individual
 
 from problem.instance import Instance
 from representation.population import Population
@@ -138,9 +144,73 @@ class HyperHeuristic():
 
     def compute_metrics(self):
         """
-        Compute indicators
+        Compute an indicator metric and rank the individuals.
         """
-        pass
+
+        # Now that every individual has solved the instances.
+        fitness_values = [[0]*len(self.instances) for _ in range(len(self.population.individuals))]
+
+        # For each individual...
+        for i, instance in enumerate(tqdm(self.instances)):
+                
+            # Instance name
+            instance_name = instance.instance_name
+
+            # If instance already has fronts...
+            if instance.fronts:
+                
+                # Merge all fronts with non-dominated front
+                for front in instance.fronts:
+                    instance.non_dominated_front = instance.non_dominated_front.union(front)
+
+            # Compute non-dominated-sorting on each instance non-dominated-front.    
+            instance.fronts = non_dominated_sorting(instance.non_dominated_front)
+
+            # Set non-dominated front as the first front.
+            instance.non_dominated_front = set(instance.fronts[0])
+
+            # Compute Nadir Points
+            instance.nadir_point = compute_nadir_point(instance.non_dominated_front)
+
+            # Verify that new Nadir Point is indeed worst # TODO: IMPROVE IT (location maybe?, the way consolidated is updated influences.)
+            instance.nadir_point = list(map(max, zip(*[instance.nadir_point, instance.previous_nadir_point])))
+
+            # If nadir point changed...
+            if instance.previous_nadir_point != instance.nadir_point:
+
+                # Re-compute the hypervolume of the actual population
+                for individual in self.population.evaluated():
+                    individual.hypervolumes[instance_name] = compute_hypervolume(instance.nadir_point,
+                                                                individual.pareto_fronts[instance_name])
+
+            # Compute the hypervolume to all the new individuals
+            for individual in self.population.non_evaluated():
+
+                # Compute hypervolume to the new individual.
+                individual.hypervolumes[instance_name] = compute_hypervolume(instance.nadir_point,
+                                                            individual.pareto_fronts[instance_name])
+            
+            # Save the nadir_points to verify changes.
+            instance.previous_nadir_point = instance.nadir_point
+
+            # Assign a rank for each individual based on their hypervolumes.
+            ranks = compute_rank(self.population.get_hypervolumes(instance_name))
+
+            # Store the rank to the individuals
+            for j, individual in enumerate(self.population.individuals):
+                individual.fitness_values[instance_name] = ranks[j]
+                fitness_values[j][i] = ranks[j]
+
+        # Once an individual computed its hypervolumes across all instances,
+        # mark it as evaluated.
+        for individual in self.population.non_evaluated():
+            # Mark the individual as evaluated.
+            individual.evaluated = True
+
+        # Average the fitness values across all instances.
+        scores = [sum(fitness_values[i]) / len(self.instances) for i in range(len(self.population.individuals))]
+
+        return scores
 
     def evolutionary_step(self):
         """

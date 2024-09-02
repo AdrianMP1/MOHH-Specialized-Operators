@@ -1,0 +1,2 @@
+The folder contains code to analyze the results, individuals and other things.
+It will be merged into the src folder eventually, or structured in another way.

@@ -1,6 +1,7 @@
 
 import json
 import networkx as nx
+from graphviz import Digraph
 import matplotlib.pyplot as plt
 
 from params import Params, set_params
@@ -71,7 +72,7 @@ def parse_expression(expression, grammar=GRAMMAR):
         node.children.extend([left_child, right_child])
         return node
     
-    for func in grammar['<binary>']:
+    for func in grammar['<binary_func>']:
         if expression.startswith(func + '(') and expression.endswith(')'):
             node = Node(func)
             inner_expr = expression[len(func) + 1:-1]
@@ -83,7 +84,7 @@ def parse_expression(expression, grammar=GRAMMAR):
             
             return node
 
-    for func in grammar['<function>']:
+    for func in grammar['<unary_func>']:
         if expression.startswith(func + '(') and expression.endswith(')'):
             node = Node(func)
             inner_expr = expression[len(func) + 1:-1]
@@ -118,6 +119,21 @@ def add_nodes_edges(graph, node, parent=None):
         graph.add_edge(id(parent), id(node))
     for child in node.children:
         add_nodes_edges(graph, child, node)
+
+
+def visualize_tree(syntax_tree, expression, gen, indx):
+    def add_nodes_edges(graph, node, parent=None):
+        graph.node(str(id(node)), label=node.value)
+        if parent:
+            graph.edge(str(id(parent)), str(id(node)))
+        for child in node.children:
+            add_nodes_edges(graph, child, node)
+    
+    graph = Digraph()
+    add_nodes_edges(graph, syntax_tree)
+
+    graph.render(f"Tree_{indx}.gv", format="png")
+
 
 def visualize_syntax_tree(syntax_tree, expression, gen):
     def add_nodes_edges(graph, node, parent=None):
@@ -214,6 +230,8 @@ if __name__ == "__main__":
 
         individual_tree = parse_expression(phenotype)
 
-        visualize_syntax_tree(individual_tree, phenotype, 0)
+        visualize_tree(individual_tree, phenotype, 0, i)
+
+        #visualize_syntax_tree(individual_tree, phenotype, 0)
         
         print(phenotype, " || ", phenotypes_to_verify[i])

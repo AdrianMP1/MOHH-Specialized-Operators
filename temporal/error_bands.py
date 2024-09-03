@@ -6,7 +6,7 @@ import seaborn as sns
 
 if __name__ == "__main__":
 
-    sns.set()
+    sns.set_theme()
 
     x = np.linspace(0,30,30)
 

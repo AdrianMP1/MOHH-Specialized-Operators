@@ -70,7 +70,7 @@ def tree_edit_distance(tree1: Node, tree2: Node) -> int:
     return cost_substitution + dp[-1][-1]
 
 
-def structural_entropy(tree: Node, kind: str = "subtree_sizes"):
+def structural_entropy(tree: Node, kind: str = "subtree_sizes") -> float:
     """
     Calculate the structural entropy of a tree based on subtree sizes.
     """
@@ -85,11 +85,11 @@ def structural_entropy(tree: Node, kind: str = "subtree_sizes"):
     probabilities = [count / total_size for count in size_counts.values()]
 
     # Compute entropy
-    entropy = - sum(p * math.log(p, 2) for p in probabilities)
+    entropy: float = - sum(p * math.log(p, 2) for p in probabilities)
     return entropy
 
 
-def compute_balance_skewness(node: Node):
+def compute_balance_skewness(node: Node) -> tuple[int, int, int, int, int, int]:
     """
     Compute the balance and skewness of a tree.
     """
@@ -114,22 +114,22 @@ def compute_balance_skewness(node: Node):
         right_depth, right_balance[0], right_skewness[0], right_balance[1], right_skewness[1], right_count = compute_balance_skewness(node.children[1])
     
     # Calculate depth of the current node
-    depth = 1 + max(left_depth, right_depth)
+    depth: int = 1 + max(left_depth, right_depth)
 
     # Calculate absolute and directional balance
-    abs_balance = abs(left_depth - right_depth)
-    dir_balance = right_depth - left_depth # Positive if right is deeper, else negative.
+    abs_balance: int = abs(left_depth - right_depth)
+    dir_balance: int = right_depth - left_depth # Positive if right is deeper, else negative.
 
     # Calculate absolute and directional skewness
-    abs_skewness = abs(left_count - right_count)
-    dir_skewness = right_count - left_count # Positive if right has more nodes, else negative.
+    abs_skewness: int = abs(left_count - right_count)
+    dir_skewness: int = right_count - left_count # Positive if right has more nodes, else negative.
 
     # Aggregate values
-    total_abs_balance = abs_balance + left_balance[0] + right_balance[0]
-    total_abs_skewness = abs_skewness + left_skewness[0] + right_skewness[0]
+    total_abs_balance: int = abs_balance + left_balance[0] + right_balance[0]
+    total_abs_skewness: int = abs_skewness + left_skewness[0] + right_skewness[0]
 
     # Count total nodes including the current node
-    total_count = left_count + right_count + 1
+    total_count: int = left_count + right_count + 1
 
     # Pass upward the directional metrics; no need to accumulate since they are contextual
     return depth, total_abs_balance, total_abs_skewness, dir_balance, dir_skewness, total_count

@@ -26,7 +26,7 @@ def compute_expansion_rate(tree: Node) -> dict:
 
     return non_terminals
 
-def population_expansion_rate(population: list[Node]) -> dict:
+def population_expansion_rate(population: dict[str,Node]) -> dict:
     """
     Compute the expansion rate of non-terminals
     for the whole population.
@@ -34,7 +34,7 @@ def population_expansion_rate(population: list[Node]) -> dict:
 
     pop_non_terminals = dict()
 
-    for individual in population:
+    for name, individual in population.items():
 
         non_terminals = compute_expansion_rate(individual)
 

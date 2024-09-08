@@ -1,6 +1,5 @@
 
 import os
-import json
 from tqdm import tqdm
 
 from graphviz import Digraph
@@ -81,3 +80,4 @@ def map_individuals_to_trees() -> None:
     # Make a file to avoid re-runs
     with open(os.path.join(individuals_path, "all_ready_trees.json"), "w") as f:
         f.close()
+        

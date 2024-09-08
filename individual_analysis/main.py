@@ -5,6 +5,7 @@ from graphviz_creator import map_individuals_to_trees
 
 from individual_operations import load_generation
 from individual_operations import get_num_generations
+from individual_operations import phenotypes_to_trees
 
 
 def main():
@@ -25,10 +26,14 @@ def main():
         # Get current generation phenotypes.
         pop_phenotypes, off_phenotypes = load_generation(gen)
 
+        # Map phenotypes into trees
+        pop_trees = phenotypes_to_trees(pop_phenotypes)
+        off_trees = phenotypes_to_trees(off_phenotypes)
+
         # TODO: You're here. off_phenotypes are the children of pop_phenotypes.
         # TODO: Now we can implement the metrics TED, Entropy, etc.
-        # TODO: But first, we need to verify this runs, and make syntax trees for the phenotypes.
-         
+        
+        
 
 if __name__ == "__main__":
     main()

@@ -231,9 +231,14 @@ def compute_metrics(individuals: dict[str, Node], rankings: list[list], hypervol
     path_variances = population_path_length_variance(individuals)
 
     # Redundancy
-    redundancies = population_redundancy(individuals)
+    test_suite = [[np.random.random(5) for _ in range(2)] for _ in range(5)]
+    redundancies = population_redundancy(individuals, test_suite)
 
     # Expansion Rate
     non_terminals = population_expansion_rate(individuals)
 
+    # Structure data to save it
+    
+
     # Compute correlations, find patterns
+    print("A")

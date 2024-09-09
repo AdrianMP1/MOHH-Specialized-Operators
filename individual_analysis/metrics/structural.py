@@ -97,56 +97,80 @@ def compute_balance_skewness(node: Node) -> tuple[int, int, int, int, int, int]:
         #(depth, abs_balance, abs_skweness, dir_balance, dir_skewness, count)
         return 0, 0, 0, 0, 0, 1
     
-    # Initialize values
+    if len(node.children) == 1:
+        
+        # Unary case
+        balance = [0, 0]
+        skewness = [0, 0]
 
-    left_depth, left_count = 0, 0
-    left_balance = [0, 0] # (absolute, directional)
-    left_skewness = [0, 0] # (absolute, directional)
-    
-    right_depth, right_count = 0, 0
-    right_balance = [0, 0] # (absolute, directional)
-    right_skewness = [0, 0] # (absolute, directional)
+        depth, balance[0], skewness[0], balance[1], skewness[1], count = compute_balance_skewness(node.children[0])
 
-    # Assign left and right
-    if len(node.children) > 0:
-        left_depth, left_balance[0], left_skewness[0], left_balance[1], left_skewness[1], left_count = compute_balance_skewness(node.children[0])
+        depth: int = 1 + depth
+
+        abs_balance: int = balance[0]
+        dir_balance: int = balance[1]
+
+        abs_skewness: int = skewness[0]
+        dir_skewness: int = skewness[1]
+
+        total_abs_balance: int = abs_balance
+        total_abs_skewness: int = abs_skewness
+
+        total_count: int = count + 1
+
+        return depth, total_abs_balance, total_abs_skewness, dir_balance, dir_skewness, total_count
     
-    if len(node.children) > 1:
-        right_depth, right_balance[0], right_skewness[0], right_balance[1], right_skewness[1], right_count = compute_balance_skewness(node.children[1])
-    """
-    This doesn't fix the balance and skewness for unary.
     else:
-        # Tree is unary, compensate values
-        right_depth = 0
-        right_count = 1
 
-        right_balance[0] = 0
-        right_skewness[0] = 0
+        # Initialize values
+        left_depth, left_count = 0, 0
+        left_balance = [0, 0] # (absolute, directional)
+        left_skewness = [0, 0] # (absolute, directional)
 
-        right_balance[1] = 0
-        right_skewness[1] = 0
-    """
+        right_depth, right_count = 0, 0
+        right_balance = [0, 0] # (absolute, directional)
+        right_skewness = [0, 0] # (absolute, directional)
 
-    # Calculate depth of the current node
-    depth: int = 1 + max(left_depth, right_depth)
+        # Assign left and right
+        if len(node.children) > 0:
+            left_depth, left_balance[0], left_skewness[0], left_balance[1], left_skewness[1], left_count = compute_balance_skewness(node.children[0])
 
-    # Calculate absolute and directional balance
-    abs_balance: int = abs(left_depth - right_depth)
-    dir_balance: int = right_depth - left_depth # Positive if right is deeper, else negative.
+        if len(node.children) > 1:
+            right_depth, right_balance[0], right_skewness[0], right_balance[1], right_skewness[1], right_count = compute_balance_skewness(node.children[1])
+        """
+        This doesn't fix the balance and skewness for unary.
+        else:
+            # Tree is unary, compensate values
+            right_depth = 0
+            right_count = 1
 
-    # Calculate absolute and directional skewness
-    abs_skewness: int = abs(left_count - right_count)
-    dir_skewness: int = right_count - left_count # Positive if right has more nodes, else negative.
+            right_balance[0] = 0
+            right_skewness[0] = 0
 
-    # Aggregate values
-    total_abs_balance: int = abs_balance + left_balance[0] + right_balance[0]
-    total_abs_skewness: int = abs_skewness + left_skewness[0] + right_skewness[0]
+            right_balance[1] = 0
+            right_skewness[1] = 0
+        """
 
-    # Count total nodes including the current node
-    total_count: int = left_count + right_count + 1
+        # Calculate depth of the current node
+        depth: int = 1 + max(left_depth, right_depth)
 
-    # Pass upward the directional metrics; no need to accumulate since they are contextual
-    return depth, total_abs_balance, total_abs_skewness, dir_balance, dir_skewness, total_count
+        # Calculate absolute and directional balance
+        abs_balance: int = abs(left_depth - right_depth)
+        dir_balance: int = right_depth - left_depth # Positive if right is deeper, else negative.
+
+        # Calculate absolute and directional skewness
+        abs_skewness: int = abs(left_count - right_count)
+        dir_skewness: int = right_count - left_count # Positive if right has more nodes, else negative.
+
+        # Aggregate values
+        total_abs_balance: int = abs_balance + left_balance[0] + right_balance[0]
+        total_abs_skewness: int = abs_skewness + left_skewness[0] + right_skewness[0]
+
+        # Count total nodes including the current node
+        total_count: int = left_count + right_count + 1
+
+        # Pass upward the directional metrics; no need to accumulate since they are contextual
+        return depth, total_abs_balance, total_abs_skewness, dir_balance, dir_skewness, total_count
 
 #if __name__ == "__main__":
 #    from tree_parser import parse_expression

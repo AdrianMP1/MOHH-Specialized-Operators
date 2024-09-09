@@ -5,7 +5,9 @@ from graphviz_creator import map_individuals_to_trees
 
 from individual_operations import load_generation
 from individual_operations import get_num_generations
-
+from individual_operations import compute_hypervolumes
+from individual_operations import phenotypes_to_trees
+from individual_operations import compute_metrics
 
 def main():
 
@@ -25,10 +27,19 @@ def main():
         # Get current generation phenotypes.
         pop_phenotypes, off_phenotypes = load_generation(gen)
 
-        # TODO: You're here. off_phenotypes are the children of pop_phenotypes.
-        # TODO: Now we can implement the metrics TED, Entropy, etc.
-        # TODO: But first, we need to verify this runs, and make syntax trees for the phenotypes.
-         
+        # TODO: This is computing fine. Maybe the graphs/figures of HVs & Fronts
+        # TODO: Should be inside compute_hypervolumes since the functions access
+        # TODO: the fronts inside its loops.
+        # Compute HVs and fitness
+        rankings, hypervolumes = compute_hypervolumes(pop_phenotypes, gen)
+
+        # Map phenotypes into trees
+        pop_trees = phenotypes_to_trees(pop_phenotypes)
+        off_trees = phenotypes_to_trees(off_phenotypes)
+
+        # TODO: Start making graphs!!!
+        compute_metrics(pop_trees, rankings, hypervolumes)
+        
 
 if __name__ == "__main__":
     main()

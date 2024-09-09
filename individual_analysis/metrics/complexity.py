@@ -1,7 +1,7 @@
 
 from auxiliars.tree import Node
-from structural import compute_path_lengths
-from subtree_characteristics import subtree_sizes
+from metrics.structural import compute_path_lengths
+from metrics.subtree_characteristics import subtree_sizes
 
 def path_length_variance(path_lengths: list) -> float:
     """
@@ -19,18 +19,18 @@ def path_length_variance(path_lengths: list) -> float:
     return variance
 
 
-def population_path_length_variance(trees: list[Node]) -> list:
+def population_path_length_variance(trees: dict[str,Node]) -> dict[str,float]:
     """
     From a population, compute the variance of their path lengths.
     """
 
-    variances = []
+    variances = dict()
 
-    for tree in trees:
+    for name, tree in trees.items():
         path_lengths = compute_path_lengths(tree)
         variance = path_length_variance(path_lengths)
 
-        variances.append(variance)
+        variances[name] = variance
     
     return variances
 
@@ -185,11 +185,11 @@ def detect_redundancy(tree: Node, test_suite: list[list], tolerance: float=0.01)
     return redundant_subtrees
 
 
-def population_redundancy(population: list[Node], test_suite: list[list]) -> list[float]:
+def population_redundancy(population: dict[str,Node], test_suite: list[list]) -> dict[str,float]:
 
-    redundancy = []
+    redundancy = dict()
 
-    for tree in population:
+    for name, tree in population.items():
         # Get the number of subtrees
         num_subtrees = len(subtree_sizes(tree))
 
@@ -200,6 +200,6 @@ def population_redundancy(population: list[Node], test_suite: list[list]) -> lis
         redundant_subtrees = [element[0] for element in subtrees if element[1]]
 
         # Compute metric and save it
-        redundancy.append(len(redundant_subtrees) / num_subtrees)
+        redundancy[name] = len(redundant_subtrees) / num_subtrees
 
     return redundancy

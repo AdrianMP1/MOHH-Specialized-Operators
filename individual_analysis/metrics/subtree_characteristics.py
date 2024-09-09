@@ -68,7 +68,7 @@ def collect_subtrees(tree: Node) -> tuple[dict, dict, dict]:
     return subtree_hashes, subtree_depths, non_terminals_depth
 
 
-def population_subtrees(trees: list[Node]) -> tuple:
+def population_subtrees(trees: dict[str,Node]) -> tuple[dict[str,int],dict[str,list],dict[str,list]]:
     """
     Compute collect subtrees for the whole population.
     """
@@ -77,7 +77,7 @@ def population_subtrees(trees: list[Node]) -> tuple:
     aggregated_depths = defaultdict(list)
     aggregated_non_terminals = defaultdict(list)
 
-    for tree in trees:
+    for name, tree in trees.items():
         subtree_hashes, subtree_depths, non_terminals = collect_subtrees(tree)
 
         # Merge hashes

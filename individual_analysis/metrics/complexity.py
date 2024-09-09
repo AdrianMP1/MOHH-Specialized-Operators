@@ -1,7 +1,7 @@
 
 from auxiliars.tree import Node
-from structural import compute_path_lengths
-from subtree_characteristics import subtree_sizes
+from metrics.structural import compute_path_lengths
+from metrics.subtree_characteristics import subtree_sizes
 
 def path_length_variance(path_lengths: list) -> float:
     """

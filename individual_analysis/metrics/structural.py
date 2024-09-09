@@ -3,7 +3,7 @@ import math
 
 from auxiliars.tree import Node
 from collections import Counter, deque
-from subtree_characteristics import subtree_sizes
+from metrics.subtree_characteristics import subtree_sizes
 
 def compute_path_lengths(tree: Node):
     """
@@ -110,9 +110,23 @@ def compute_balance_skewness(node: Node) -> tuple[int, int, int, int, int, int]:
     # Assign left and right
     if len(node.children) > 0:
         left_depth, left_balance[0], left_skewness[0], left_balance[1], left_skewness[1], left_count = compute_balance_skewness(node.children[0])
+    
     if len(node.children) > 1:
         right_depth, right_balance[0], right_skewness[0], right_balance[1], right_skewness[1], right_count = compute_balance_skewness(node.children[1])
-    
+    """
+    This doesn't fix the balance and skewness for unary.
+    else:
+        # Tree is unary, compensate values
+        right_depth = 0
+        right_count = 1
+
+        right_balance[0] = 0
+        right_skewness[0] = 0
+
+        right_balance[1] = 0
+        right_skewness[1] = 0
+    """
+
     # Calculate depth of the current node
     depth: int = 1 + max(left_depth, right_depth)
 

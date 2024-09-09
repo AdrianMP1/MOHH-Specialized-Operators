@@ -55,7 +55,7 @@ def map_individuals_to_trees() -> None:
     individuals_path = params["INDIVIDUALS_PATH"]
 
     # Verify if the individuals have already been mapped into trees.
-    if os.path.exists(os.path.join(individuals_path, "all_read_trees.json")):
+    if os.path.exists(os.path.join(individuals_path, "all_ready_trees.json")):
         return
     
     # If not, loop over every individual

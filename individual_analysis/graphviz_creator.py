@@ -6,7 +6,7 @@ from graphviz import Digraph
 from handle_params import Params
 
 from auxiliars.tree import Node
-from auxiliars.read_files import read_json
+from auxiliars.file_operations import read_json
 from auxiliars.tree_parser import parse_expression
 
 

@@ -60,7 +60,8 @@ def non_dominated_sorting(solutions):
 
         fronts.append(big_q)
     
-    return fronts
+    # TODO: Hard-coded temporarily.
+    return fronts[:3]
 
 
 def dominates(individual1, individual2):

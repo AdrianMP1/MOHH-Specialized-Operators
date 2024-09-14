@@ -1,12 +1,11 @@
 
-import sys
 import copy
 import time
 from tqdm import tqdm
 
 # Classes
 from params import Params
-from saver import PopulationSaver
+from saver import PopulationSaver, MyLogger
 
 from problem.instance import Instance
 from algorithm.multiobjective import MOSolver
@@ -15,7 +14,6 @@ from representation.population import Individual
 
 # Auxiliar functions
 from utilities.print_utils import update_lines
-from utilities.print_utils import clear_above_lines
 from utilities.load_modules import find_module
 from utilities.algorithm.MO import compute_nadir_point
 from utilities.algorithm.MO import compute_hypervolume
@@ -109,6 +107,9 @@ class HyperHeuristic():
         Evaluates the individuals by solving the instances.
         """
 
+        # Load logger
+        logger = MyLogger().get_logger()
+
         # Make a progress bar
         pbar = tqdm(self.population.non_evaluated(), desc="Evaluating...",
                     bar_format="{l_bar}{bar:20}{r_bar}", leave=True)
@@ -150,11 +151,23 @@ class HyperHeuristic():
                 # Add front to the consolidated
                 instance.non_dominated_front = \
                     instance.non_dominated_front.union([tuple(element) for element in pareto_front.tolist()])
+                
+        # Close progress bar
+        pbar.close()
+
+        # Extract elapsed time
+        total_time = pbar.format_dict["elapsed"]
+
+        # Add it to the log file
+        logger.info(f"Evaluation took: {total_time} seconds")
     
     def compute_metrics(self):
         """
         Compute an indicator metric and rank the individuals.
         """
+
+        # Load logger
+        logger = MyLogger().get_logger()
 
         # Now that every individual has solved the instances.
         fitness_values = [[0]*len(self.instances) for _ in range(len(self.population.individuals))]
@@ -257,6 +270,17 @@ class HyperHeuristic():
 
         # Average the fitness values across all instances.
         scores = [sum(fitness_values[i]) / len(self.instances) for i in range(len(self.population.individuals))]
+
+        # Close progress bar
+        pbar.close()
+
+        # Extract elapsed time
+        total_time = pbar.format_dict["elapsed"]
+
+        # Add it to the log file
+        logger.info(f"Metrics took: {total_time} seconds")
+        logger.info(f"Sorting: {sorting_text}")
+        logger.info(f"Hypervolumes: {hv_text}")
 
         return scores
 
@@ -379,11 +403,15 @@ class HyperHeuristic():
         # Load population saver
         population_saver = PopulationSaver()
 
+        # Load logger
+        logger = MyLogger().get_logger()
+
         # Start timer
         start_time = time.time()
 
         print("Generation 0.")
         print("Start initial population.")
+        logger.info(f"Generation 0/{self.num_generations}")
 
         # Create initial population.
         self.population.initialize_population(self.population_size)
@@ -404,6 +432,7 @@ class HyperHeuristic():
         for gen in range(1, self.num_generations + 1):
 
             print(f"\nGeneration {gen}/{self.num_generations}")
+            logger.info(f"Generation {gen}/{self.num_generations}")
 
             # Generate offsprings
             self.evolutionary_step(scores)
@@ -432,12 +461,16 @@ class HyperHeuristic():
             population_saver.save_consolidated_fronts(self.instances, generation=gen)
             
             print(f"\nBest Individual: {self.population.individuals[0].phenotype}")
+            logger.info(f"Best Individual: {self.population.individuals[0].phenotype}")
 
         # Print total time
         end = time.time()
         seconds = round(end - start_time, 2)
         minutes = round(seconds / 60, 2)
         hours = round(minutes / 60, 2)
-        print(f"\n\n Total time: {seconds} seconds.")
+        print(f"\n\nTotal time: {seconds} seconds.")
         print(f"Minutes: {minutes}")
         print(f"Hours: {hours}")
+        logger.info(f"Total time in seconds: {seconds}")
+        logger.info(f"Total time in minutes: {minutes}")
+        logger.info(f"Total time in hours: {hours}")

@@ -191,7 +191,7 @@ def set_params():
 
     # Load Grammar & Saver
     from representation import grammar
-    from saver import PopulationSaver
+    from saver import PopulationSaver, MyLogger
 
     # Get actual time
     start = datetime.now()
@@ -215,6 +215,8 @@ def set_params():
     # Generate save folders
     if params["SAVE"]:
         save = PopulationSaver()
+        logger = MyLogger().get_logger()
+        logger.info(f"Start")
 
     # Set Genome operations
     params["GENOME_OPERATIONS"] = True

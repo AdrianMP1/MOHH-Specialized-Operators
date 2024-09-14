@@ -1,6 +1,7 @@
 
 import json
 import hashlib
+import logging
 import numpy as np
 
 from params import Params
@@ -246,3 +247,54 @@ class PopulationSaver():
 
     def _consolidate_instance_fronts(self, generation_data, instance_id):
         pass
+
+
+class MyLogger():
+
+    # Variable to hold singleton
+    _instance = None
+
+    def __new__(cls):
+
+        # Verify if there is already an instance
+        if cls._instance is None:
+            # Create a new instance
+            cls._instance = super(MyLogger, cls).__new__(cls)
+        
+        return cls._instance
+    
+    def __init__(self):
+
+        # Check if logger has already been initialized
+        if hasattr(self, "logger"):
+            return
+        
+        # Load parameters for paths.
+        params = Params()
+        experiment_path = params["FILE_PATH"]
+        log_path = path.join(experiment_path, "CLI_output.log")
+
+        # Configure the logger
+        self.logger = logging.getLogger("MyLogger")
+        self.logger.setLevel(logging.INFO)
+
+        # Create a file handler to save logs
+        file_handler = logging.FileHandler(log_path)
+        file_handler.setLevel(logging.INFO)
+
+        # Create a console handler to print to the console
+        #console_handler = logging.StreamHandler()
+        #console_handler.setLevel(logging.INFO)
+
+        # Define the format
+        formatter = logging.Formatter("%(asctime)s :: %(message)s")
+        file_handler.setFormatter(formatter)
+        #console_handler.setFormatter(formatter)
+
+        # Add handlers
+        self.logger.addHandler(file_handler)
+        #self.logger.addHandler(console_handler)
+    
+    def get_logger(self) -> logging.Logger:
+        # Access the logger instance
+        return self.logger

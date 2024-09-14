@@ -1,244 +1,205 @@
 import os
 import numpy as np
-
-from pymoo.indicators.hv import HV
+import pandas as pd
 
 from handle_params import Params
 
 from auxiliars.tree import Node
-from auxiliars.read_files import read_json
+from auxiliars.file_operations import write_json
 from auxiliars.tree_parser import parse_expression
 
-from metrics.structural import tree_edit_distance, structural_entropy, compute_balance_skewness
-from metrics.subtree_characteristics import population_subtrees
-from metrics.complexity import population_path_length_variance, population_redundancy 
-from metrics.expansion_rate import population_expansion_rate
+from auxiliars.individuals_auxiliars import load_generation
+from auxiliars.individuals_auxiliars import phenotypes_to_trees, best_individual
+from auxiliars.individuals_auxiliars import get_num_generations, get_general_info
+from auxiliars.individuals_auxiliars import compute_hypervolumes, compute_metrics
 
-def get_num_generations() -> int:
-    params = Params()
-    return len(os.listdir(params["GENERATIONS_PATH"]))
+from metrics.complexity import path_length_variance 
+from metrics.structural import structural_entropy
+from metrics.structural import compute_balance_skewness, compute_path_lengths
+from metrics.subtree_characteristics import collect_subtrees
+from metrics.expansion_rate import compute_expansion_rate
 
 
-def load_generation(generation: int) -> tuple[dict, dict]:
+
+
+
+def individual_metrics_dataframe() -> pd.DataFrame:
+    """
+    Computes for all individuals and writes a pandas dataframe
+    Structural Metrics, Entropy and Path Length Variance.
+    """
 
     # Get parameters
     params = Params()
 
     # Get paths
-    generation_path = params["GENERATIONS_PATH"]
+    experiment_path = params["EXPERIMENT_PATH"]
     individuals_path = params["INDIVIDUALS_PATH"]
 
-    offspring_path = os.path.join(generation_path, f"generation_{generation:04d}", "offspring.json")
-    population_path = os.path.join(generation_path, f"generation_{generation:04d}", "population.json")
+    # Extract all phenotypes
+    individuals:dict[str, str] = dict()
+    for name in os.listdir(individuals_path):
+
+        if name in ["all_ready_trees.json"]:
+            continue
+
+        current_path: str = os.path.join(individuals_path, name)
+        general_info: dict = get_general_info(current_path)
+
+        phenotype: str = general_info["phenotype"]
+        individuals[name] = phenotype
     
+   
+    # Compute metrics
+    names = list(individuals.keys())
+    phenotypes = list(individuals.values())
+   
+    whole_sizes = []
+    whole_balance = []
+    whole_skewness = []
+    whole_maxdepth = []
 
-    # Open population pointer files
-    population_pointers = read_json(population_path)
-
-    # Open offspring pointer files
-    offspring_pointers = read_json(offspring_path)
-
-    # Create variables
-    pop_phenotypes = {}
-    off_phenotypes = {}
-
-    for individual in population_pointers:
-
-        # Get general info
-        ind_path = os.path.join(individuals_path, str(individual))
-        general_info_path = os.path.join(ind_path, "general_info.json")
-
-        # Load data
-        data = read_json(general_info_path)
-        
-        # Append data
-        pop_phenotypes[individual] = data["phenotype"]
-
-    for individual in offspring_pointers:
-
-        # Get general info
-        ind_path = os.path.join(individuals_path, str(individual))
-        general_info_path = os.path.join(ind_path, "general_info.json")
-
-        # Load data
-        data = read_json(general_info_path)
-        
-        # Append data
-        off_phenotypes[individual] = data["phenotype"]
-    
-    return pop_phenotypes, off_phenotypes
-
-
-def phenotypes_to_trees(individuals: dict[str,str]) -> dict[str,Node]:
-    """
-    Parse the phenotypes[str] to trees[Nodes].
-    """
-
-    trees = dict()
+    entropies = []
+    variances = []
 
     for name, phenotype in individuals.items():
-        tree = parse_expression(phenotype)   
-        trees[name] = tree
+        
+        # Get syntax tree from phenotype
+        syntax_tree: Node = parse_expression(phenotype)
+        
+        # Structural Metrics
+        depth, _, _, balance, skewness, num_nodes = compute_balance_skewness(syntax_tree.copy())
+        whole_sizes.append(num_nodes)
+        whole_balance.append(balance)
+        whole_skewness.append(skewness)
+        whole_maxdepth.append(depth)
+
+        # Entropy
+        entropy = structural_entropy(syntax_tree.copy())
+        entropies.append(entropy)
+        
+        # Path length variance
+        path_lengths = compute_path_lengths(syntax_tree.copy())
+        variance = path_length_variance(path_lengths)
+        variances.append(variance)
+
+    # Make dictionary for dataframe
+    data = {"Name":names, "Phenotype":phenotypes, "Balance":whole_balance,
+             "Skewness":whole_skewness, "MaxDepth":whole_maxdepth, "Size":whole_sizes,
+             "Entropy":entropies, "PathLengthVariance":variances}
     
-    return trees
+    # Make dataframe
+    df = pd.DataFrame(data)
+
+    # Round numeric columns
+    columns = ["Entropy", "PathLengthVariance"]
+    df.loc[:,columns] = df.loc[:,columns].round(4)
+
+    # Save it in disk
+    df.to_csv(os.path.join(experiment_path, "individuals_metrics.csv"), index=False)
+    
+    return df
 
 
-def compute_rank(hypervolumes: list) -> list:
-
-    # Sort hypervolumes in descending order.
-    sorted_values = sorted(hypervolumes, reverse=True)
-
-    # Calculate ranks
-    ranks = dict()
-    for i, value in enumerate(sorted_values):
-        temp = ranks.get(value, [])
-        temp.append(i+1)
-        ranks[value] = temp
-
-    # Calculate the average rank for each value
-    average_ranks = {value: sum(rank) / len(rank) for value, rank in ranks.items()}
-
-    # Map the average ranks back to the original list
-    ranked_values = [average_ranks[value] for value in hypervolumes]
-
-    return ranked_values
-
-
-def compute_hypervolumes(individuals: dict[str,str], generation: int):
+def individual_metrics_json() -> dict:
     """
     """
 
     # Get parameters
     params = Params()
 
-    # Get current generation path  
-    generation_path: str = params["GENERATIONS_PATH"]
-    current_generation: str = os.path.join(generation_path, f"generation_{generation:04d}")
- 
-    # Get individuals path
-    individuals_path: str = params["INDIVIDUALS_PATH"]
-    
-    # Get files
-    generation_files: list[str] = os.listdir(current_generation)
-    
-    # Substract 2 files: offspring and population pointers.
-    generation_files.remove("offspring.json")
-    generation_files.remove("population.json")
-    
-    # Get number of instances.
-    num_instances = len(generation_files)
-    num_individuals = len(individuals)
+    # Get paths
+    individuals_path = params["INDIVIDUALS_PATH"]
 
-    rankings = [[0]*num_instances for _ in range(num_individuals)]
-    hypervolumes = [[0]*num_instances for _ in range(num_individuals)]
+    # Compute metrics
+    for name in os.listdir(individuals_path):
 
-    for i, instance in enumerate(generation_files):
+        if name in ["all_ready_trees.json"]:
+            continue
 
-        # Read Consolidated Front
-        consolidated_path: str = os.path.join(current_generation, instance)
-        consolidated = read_json(consolidated_path)
+        # Get individual information
+        current_path: str = os.path.join(individuals_path, name)
+        general_info: dict = get_general_info(current_path)
 
-        # Get primary front
-        best_front = consolidated["Front_000"]
+        # Extract phenotype
+        phenotype: str = general_info["phenotype"]
 
-        # Get nadir point
-        nadir_point = consolidated["nadir_point"]
+        # Get syntax tree from phenotype
+        syntax_tree: Node = parse_expression(phenotype)
 
-        # Initialize HV
-        metric = HV(ref_point=nadir_point)
-
-        # Change instance name to match individual format
-        instance = instance.removeprefix("Instance_Fronts")
-        instance = "instance" + instance
-
-        # HV memory
-        hvs = []
-
-        # Loop over individuals to get their fronts
-        for name, phenotype in individuals.items():
-            
-            # Make individual path to current instance
-            current_individual_path = os.path.join(individuals_path, name, instance)
-
-            # Read json
-            individual_data: dict = read_json(current_individual_path)
-
-            # Extract front
-            front = np.array(individual_data["front"])
-
-            # Compute HV
-            hv = metric(front)
-            hvs.append(hv)
+        # Compute subtrees [dict, dict, dict]
+        subtrees, subtrees_depths, non_terminals_depths = collect_subtrees(syntax_tree.copy())
         
-        ranks = compute_rank(hvs)
+        # Get non-terminals frequency
+        non_terminals: dict = compute_expansion_rate(syntax_tree.copy())
 
-        for j in range(num_individuals):
-            rankings[j][i] = ranks[j]
-            hypervolumes[j][i] = hvs[j]
-    
-    return rankings, hypervolumes
+        # Make files
+        write_json(os.path.join(current_path, f"subtrees_frequency.json"), subtrees)
+        write_json(os.path.join(current_path, f"subtrees_depths.json"), subtrees_depths)
+        
+        write_json(os.path.join(current_path, f"non_terminals_frequency.json"), non_terminals)
+        write_json(os.path.join(current_path, f"non_terminals_depth.json"), non_terminals_depths)
 
 
-def compute_metrics(individuals: dict[str, Node], rankings: list[list], hypervolumes: list[list]):
-    """
+def generational_metrics(metrics: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """    
+    Compute generation dependent metrics.
     """
 
-    # Recompute fitness, verify ranking.
-    # TODO: ALREADY IN ARGUMENTS.
+    # Get parameters
+    params = Params()
 
-    # Get the best individual index & name
-    individuals_names = list(individuals.keys())
-    avg_rank = [sum(ranks) / len(ranks) for ranks in rankings]
-    best_index = avg_rank.index(min(avg_rank))
+    # Get number of generations
+    num_generations: int = get_num_generations()
 
-    # Get the best individual tree
-    best_tree = individuals[individuals_names[best_index]]
+    # Data (list of dictionaries)
+    pop_data = []
+    off_data = []
 
-    # Create variables
-    edit_costs = dict()
-    entropies = dict()
-    balances = dict()
-    skewness = dict()
-    depths = dict()
-    node_sizes = dict()
+    # Change name to index
+    metrics.set_index("Name", inplace=True)
 
-    for name, tree in individuals.items():
-        
-        # Tree Edit Distance
-        ## Compare all individuals against the best
-        cost = tree_edit_distance(tree.copy(), best_tree.copy())
-        edit_costs[name] = cost
+    # Loop over generations
+    for gen in range(num_generations):
 
-        # Structural Entropy
-        entropy = structural_entropy(tree.copy(), kind="subtree_sizes")
-        entropies[name] = entropy
+        # Get the current generation phenotypes.
+        pop_phenotypes, off_phenotypes = load_generation(gen)
 
-        # Balance and Skewness
-        # TODO: Balance and Skewness is not working right for unary trees.
-        # TODO: Binary trees are fine, but unary trees gave preference to left side
-        # TODO: Making it unbalance.
-        depth, abs_balance, abs_skewness, \
-        dir_balance, dir_skewness, num_nodes = compute_balance_skewness(tree.copy())
-        depths[name] = depth
-        node_sizes[name] = num_nodes
-        balances[name] = [abs_balance, dir_balance]
-        skewness[name] = [abs_skewness, dir_skewness]
+        # Compute HVs and rankings
+        rankings, hypervolumes = compute_hypervolumes(pop_phenotypes, gen)
 
-    # Subtree Frequency & Depth Distribution
-    subtrees, subtrees_sizes, num_nonterminals = population_subtrees(individuals)
+        # Map phenotypes into trees
+        pop_trees = phenotypes_to_trees(pop_phenotypes)
+        off_trees = phenotypes_to_trees(off_phenotypes)
 
-    # Path Length Variance
-    path_variances = population_path_length_variance(individuals)
+        # Get the best individual tree
+        pop_best_tree = best_individual(pop_trees, rankings)
 
-    # Redundancy
-    test_suite = [[np.random.random(5) for _ in range(2)] for _ in range(5)]
-    redundancies = population_redundancy(individuals, test_suite)
+        # Compute metrics
+        pop_row = compute_metrics(metrics, pop_trees, pop_best_tree)
+        off_row = compute_metrics(metrics, off_trees, pop_best_tree)        
 
-    # Expansion Rate
-    non_terminals = population_expansion_rate(individuals)
+        # Append row to form dataframe
+        pop_data.append(pop_row)
+        off_data.append(off_row)
 
-    # Structure data to save it
+        # Do something for subtrees.
+
+    # Make data to dataframe
+    pop_df = pd.DataFrame(pop_data)
+    off_df = pd.DataFrame(off_data[:-1])
+
+    # Round values
+    pop_df = pop_df.round(decimals=6)
+    off_df = off_df.round(decimals=6)
+
+    # Add generations column
+    pop_df.insert(0, "Generation", range(0, len(pop_df)))
+    off_df.insert(0, "Generation", range(0, len(off_df)))
+
+    # Save it to disk
+    experiment_path = params["EXPERIMENT_PATH"]
+    pop_df.to_csv(os.path.join(experiment_path, "population_generation_data.csv"), index=False)
+    off_df.to_csv(os.path.join(experiment_path, "offspring_generation_data.csv"), index=False)
     
-
-    # Compute correlations, find patterns
-    print("A")
+    return pop_df, off_df

@@ -1,4 +1,5 @@
 
+import sys
 import copy
 import time
 from tqdm import tqdm
@@ -13,6 +14,8 @@ from representation.population import Population
 from representation.population import Individual
 
 # Auxiliar functions
+from utilities.print_utils import update_lines
+from utilities.print_utils import clear_above_lines
 from utilities.load_modules import find_module
 from utilities.algorithm.MO import compute_nadir_point
 from utilities.algorithm.MO import compute_hypervolume
@@ -105,9 +108,13 @@ class HyperHeuristic():
         """
         Evaluates the individuals by solving the instances.
         """
+
+        # Make a progress bar
+        pbar = tqdm(self.population.non_evaluated(), desc="Evaluating...",
+                    bar_format="{l_bar}{bar:20}{r_bar}", leave=True)
         
         # Evaluate individuals
-        for individual in tqdm(self.population.non_evaluated()):
+        for individual in pbar:
 
             # Create a MOSolver for the individual
             solver = MOSolver(seed=self.seed)
@@ -152,11 +159,28 @@ class HyperHeuristic():
         # Now that every individual has solved the instances.
         fitness_values = [[0]*len(self.instances) for _ in range(len(self.population.individuals))]
 
+        # Make memory for instance times
+        instance_sorting_time = [0.0]*len(self.instances)
+        instance_hv_time = [0.0]*len(self.instances)
+
+        # Display times
+        sorting_text = ", ".join([f"{i:05.1f} min" for i in instance_sorting_time])
+        hv_text = ", ".join([f"{i:05.1f} min" for i in instance_hv_time])
+        print(f"\nSorting: ", sorting_text)
+        print(f"Hypervolumes: ", hv_text)
+
+        # Make a progress bar
+        pbar = tqdm(self.instances, desc="Computing metrics...",
+                     bar_format="{l_bar}{bar:20}{r_bar}", leave=True)
+
         # For each individual...
-        for i, instance in enumerate(tqdm(self.instances)):
+        for i, instance in enumerate(pbar):
                 
             # Instance name
             instance_name = instance.instance_name
+
+            # Measure non dominated sorting time
+            sorting_time_init = time.time()
 
             # If instance already has fronts...
             if instance.fronts:
@@ -168,6 +192,9 @@ class HyperHeuristic():
             # Compute non-dominated-sorting on each instance non-dominated-front.    
             instance.fronts = non_dominated_sorting(instance.non_dominated_front)
 
+            # Measure non dominated sorting end time [min]
+            sorting_time = (time.time() - sorting_time_init) / 60
+
             # Set non-dominated front as the first front.
             instance.non_dominated_front = set(instance.fronts[0])
 
@@ -175,7 +202,11 @@ class HyperHeuristic():
             instance.nadir_point = compute_nadir_point(instance.non_dominated_front)
 
             # Verify that new Nadir Point is indeed worst # TODO: IMPROVE IT (location maybe?, the way consolidated is updated influences.)
-            instance.nadir_point = list(map(max, zip(*[instance.nadir_point, instance.previous_nadir_point])))
+            # For now it will work with a new nadir every time.
+            #instance.nadir_point = list(map(max, zip(*[instance.nadir_point, instance.previous_nadir_point])))
+
+            # Measure Hypervolume computation time.
+            hv_time_init = time.time()
 
             # If nadir point changed...
             if instance.previous_nadir_point != instance.nadir_point:
@@ -192,6 +223,9 @@ class HyperHeuristic():
                 individual.hypervolumes[instance_name] = compute_hypervolume(instance.nadir_point,
                                                             individual.pareto_fronts[instance_name])
             
+            # Get total time Hypervolume took [min]
+            hv_time = (time.time() - hv_time_init) / 60
+
             # Save the nadir_points to verify changes.
             instance.previous_nadir_point = instance.nadir_point
 
@@ -202,6 +236,18 @@ class HyperHeuristic():
             for j, individual in enumerate(self.population.individuals):
                 individual.fitness_values[instance_name] = ranks[j]
                 fitness_values[j][i] = ranks[j]
+
+            # Store computation times
+            instance_sorting_time[i] = sorting_time
+            instance_hv_time[i] = hv_time
+
+            # Make new time strings
+            sorting_text = ", ".join([f"{i:05.1f} min" for i in instance_sorting_time])
+            hv_text = ", ".join([f"{i:05.1f} min" for i in instance_hv_time])
+
+            # Update CLI prints
+            update_lines(["Sorting: " + sorting_text,
+                        "Hypervolumes: " + hv_text])
 
         # Once an individual computed its hypervolumes across all instances,
         # mark it as evaluated.
@@ -385,7 +431,7 @@ class HyperHeuristic():
             population_saver.save_population(self.population, generation=gen)
             population_saver.save_consolidated_fronts(self.instances, generation=gen)
             
-            print(f"Best Individual: {self.population.individuals[0].phenotype}")
+            print(f"\nBest Individual: {self.population.individuals[0].phenotype}")
 
         # Print total time
         end = time.time()

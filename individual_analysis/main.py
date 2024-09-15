@@ -16,13 +16,11 @@ def main():
     set_params(experiment_name)
     
     # Create individuals tree representation
-    # TODO: Take the nadir_point of the front 0, last generation.
-    # TODO: Compute HV for all individuals with that nadir point.
-    # TODO: Append the HV value in the csv file. Use log(HV) to better manipulate it.
     map_individuals_to_trees()
 
     # Compute generation independent metrics
     ## Balance, Skewness, Depth, Size, Entropy, Path Length Variance
+    ## HVs per instance with nadir point from the last generation.
     metrics_df = individual_metrics_dataframe()
     
     # Compute generation independent & non-dataframe metrics

@@ -8,8 +8,8 @@ from auxiliars.tree import Node
 from auxiliars.file_operations import write_json
 from auxiliars.tree_parser import parse_expression
 
-from auxiliars.individuals_auxiliars import load_generation
 from auxiliars.individuals_auxiliars import phenotypes_to_trees, best_individual
+from auxiliars.individuals_auxiliars import load_generation, get_generation_files
 from auxiliars.individuals_auxiliars import get_num_generations, get_general_info
 from auxiliars.individuals_auxiliars import compute_hypervolumes, compute_metrics
 
@@ -36,6 +36,12 @@ def individual_metrics_dataframe() -> pd.DataFrame:
     experiment_path = params["EXPERIMENT_PATH"]
     individuals_path = params["INDIVIDUALS_PATH"]
 
+    # Get generation paths
+    final_generation = get_num_generations() - 1
+    final_generation_path = os.path.join(params["GENERATIONS_PATH"],
+                                f"generation_{final_generation:04d}")
+    instance_files: list[str] = get_generation_files(final_generation_path)
+     
     # Extract all phenotypes
     individuals:dict[str, str] = dict()
     for name in os.listdir(individuals_path):
@@ -48,7 +54,12 @@ def individual_metrics_dataframe() -> pd.DataFrame:
 
         phenotype: str = general_info["phenotype"]
         individuals[name] = phenotype
-    
+
+    # Compute HVs for all individuals with the last nadir point.
+    _, hypervolumes = compute_hypervolumes(individuals, generation=final_generation)
+
+    # Transform HVs with log2, and 8 decimal places of precision.
+    transformed_hv = np.round(np.log2(np.array(hypervolumes)), 8)
    
     # Compute metrics
     names = list(individuals.keys())
@@ -88,6 +99,20 @@ def individual_metrics_dataframe() -> pd.DataFrame:
              "Skewness":whole_skewness, "MaxDepth":whole_maxdepth, "Size":whole_sizes,
              "Entropy":entropies, "PathLengthVariance":variances}
     
+    # Add Hypervolumes
+    for i, instance in enumerate(instance_files):
+
+        # Get instance HVs
+        instance_hvs = transformed_hv[:,i].tolist()
+        
+        # Make string key
+        instance = instance.replace("Instance_Fronts", "Instance")
+        instance = instance.removesuffix(".json")
+        instance_key = f"{instance}_log2(HV)"
+
+        # Add the list to the data dictionary.
+        data[instance_key] = instance_hvs
+
     # Make dataframe
     df = pd.DataFrame(data)
 
@@ -177,7 +202,7 @@ def generational_metrics(metrics: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
 
         # Compute metrics
         pop_row = compute_metrics(metrics, pop_trees, pop_best_tree)
-        off_row = compute_metrics(metrics, off_trees, pop_best_tree)        
+        off_row = compute_metrics(metrics, off_trees, pop_best_tree)
 
         # Append row to form dataframe
         pop_data.append(pop_row)

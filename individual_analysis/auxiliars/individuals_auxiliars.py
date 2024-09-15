@@ -32,6 +32,22 @@ def get_general_info(current_path: str) -> dict:
     return read_json(general_info_path)
 
 
+def get_generation_files(current_generation: str) -> list[str]:
+
+    # Get files
+    generation_files: list[str] = os.listdir(current_generation)
+
+    # Remove population and offspring pointer files.
+    try:
+        generation_files.remove("population.json")
+        generation_files.remove("offspring.json")
+    except:
+        # Inexistent files, just continue.
+        pass
+    
+    return generation_files
+
+
 def phenotypes_to_trees(individuals: dict[str,str]) -> dict[str,Node]:
     """
     Parse the phenotypes[str] to trees[Nodes].
@@ -86,17 +102,7 @@ def compute_hypervolumes(individuals: dict[str,str], generation: int):
     individuals_path: str = params["INDIVIDUALS_PATH"]
     
     # Get files
-    generation_files: list[str] = os.listdir(current_generation)
-    
-    # Substract 2 files: offspring and population pointers.
-    
-    try:
-        generation_files.remove("population.json")
-        generation_files.remove("offspring.json")
-    except:
-        # Inexistent files, just continue.
-        pass
-    
+    generation_files: list[str] = get_generation_files(current_generation)
     
     # Get number of instances.
     num_instances = len(generation_files)
@@ -273,7 +279,8 @@ def compute_dataframe_metrics(metrics: pd.DataFrame, individuals_name: list) -> 
     row = {}
 
     # Columns names
-    columns = ["Balance", "Skewness", "MaxDepth", "Size", "Entropy", "PathLengthVariance"]
+    ## Ignore first column (phenotypes)
+    columns = metrics.columns[1:]
 
     # Filter to current generation individuals in numeric columns
     temp: pd.Series = metrics.loc[individuals_name, columns]

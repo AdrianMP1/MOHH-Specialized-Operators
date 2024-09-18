@@ -235,7 +235,10 @@ def compute_metrics(metrics: pd.DataFrame, individuals: dict[str,Node], best_tre
     """
 
     # To allocate data.
+    ## Row contains summarized data
     row = {}
+    ## full_row contains raw data, N points per variable
+    full_row = {}
 
     # Compute Tree-Edit Distance
     costs = []
@@ -252,11 +255,14 @@ def compute_metrics(metrics: pd.DataFrame, individuals: dict[str,Node], best_tre
         row["TED_med"] = np.median(costs).item()
         row["TED_avg"] = np.mean(costs).item()
 
+        full_row["TED"] = costs
+
         # Get dataframe metrics
-        other_row = compute_dataframe_metrics(metrics, list(individuals.keys()))
+        other_row, other_full_row = compute_dataframe_metrics(metrics, list(individuals.keys()))
 
         # Merge both dictionaries
         row.update(other_row)
+        full_row.update(other_full_row)
     
     except Exception as e:
         # If costs exists, print the error
@@ -268,7 +274,7 @@ def compute_metrics(metrics: pd.DataFrame, individuals: dict[str,Node], best_tre
             # There wasn't population or offspring in this generation.
             pass
 
-    return row
+    return row, full_row
 
 
 def compute_dataframe_metrics(metrics: pd.DataFrame, individuals_name: list) -> dict[str,float]:
@@ -276,7 +282,11 @@ def compute_dataframe_metrics(metrics: pd.DataFrame, individuals_name: list) -> 
     From the individual's dataframe, compute metrics for a generation.
     """
     
+    # Allocate variable
+    ## Row for summarized data
     row = {}
+    ## Full_row for raw data
+    full_row = {}
 
     # Columns names
     ## Ignore first column (phenotypes)
@@ -303,5 +313,6 @@ def compute_dataframe_metrics(metrics: pd.DataFrame, individuals_name: list) -> 
         row[f"{name}_max"] = max_values[name]
         row[f"{name}_med"] = med_values[name]
         row[f"{name}_avg"] = avg_values[name]
+        full_row[f"{name}"] = temp[name].tolist()
     
-    return row
+    return row, full_row

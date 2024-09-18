@@ -163,7 +163,7 @@ def individual_metrics_json() -> dict:
         write_json(os.path.join(current_path, f"subtrees_depths.json"), subtrees_depths)
         
         write_json(os.path.join(current_path, f"non_terminals_frequency.json"), non_terminals)
-        write_json(os.path.join(current_path, f"non_terminals_depth.json"), non_terminals_depths)
+        write_json(os.path.join(current_path, f"non_terminals_depths.json"), non_terminals_depths)
 
 
 def generational_metrics(metrics: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -180,6 +180,10 @@ def generational_metrics(metrics: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
     # Data (list of dictionaries)
     pop_data = []
     off_data = []
+
+    # Dictionary to save all generation data
+    full_pop_data = dict()
+    full_off_data = dict()
 
     # Change name to index
     metrics.set_index("Name", inplace=True)
@@ -201,16 +205,28 @@ def generational_metrics(metrics: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
         pop_best_tree = best_individual(pop_trees, rankings)
 
         # Compute metrics
-        pop_row = compute_metrics(metrics, pop_trees, pop_best_tree)
-        off_row = compute_metrics(metrics, off_trees, pop_best_tree)
+        pop_row, pop_raw_row = compute_metrics(metrics, pop_trees, pop_best_tree)
+        off_row, off_raw_row = compute_metrics(metrics, off_trees, pop_best_tree)
 
         # Append row to form dataframe
         pop_data.append(pop_row)
         off_data.append(off_row)
 
-        # Do something for subtrees.
+        # Make dataframe from raw row
+        pop_raw_df = pd.DataFrame(pop_raw_row)
+        off_raw_df = pd.DataFrame(off_raw_row)
 
-    # Make data to dataframe
+        # Set index
+        pop_raw_df.index = (list(pop_phenotypes.keys()))
+        off_raw_df.index = (list(off_phenotypes.keys()))
+
+        # Append dataframe to full data
+        full_pop_data[f"Generation_{gen:03d}"] = pop_raw_df
+
+        if not(off_raw_df.empty):
+            full_off_data[f"Generation_{gen:03d}"] = off_raw_df
+
+    # Make summarized data to dataframe
     pop_df = pd.DataFrame(pop_data)
     off_df = pd.DataFrame(off_data[:-1])
 
@@ -227,4 +243,4 @@ def generational_metrics(metrics: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
     pop_df.to_csv(os.path.join(experiment_path, "population_generation_data.csv"), index=False)
     off_df.to_csv(os.path.join(experiment_path, "offspring_generation_data.csv"), index=False)
     
-    return pop_df, off_df
+    return full_pop_data, full_off_data

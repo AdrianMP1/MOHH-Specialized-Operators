@@ -61,3 +61,7 @@ def set_params(experiment_name: str):
     params["INDIVIDUALS_PATH"] = os.path.join(params["EXPERIMENT_PATH"], "individuals")
 
     params["INITIAL_SOLUTIONS_PATH"] = os.path.join(params["EXPERIMENT_PATH"], "initial_solutions")
+
+    params["PLOTS_PATH"] = os.path.join(params["EXPERIMENT_PATH"], "plots")
+
+    os.makedirs(params["PLOTS_PATH"], exist_ok=True)

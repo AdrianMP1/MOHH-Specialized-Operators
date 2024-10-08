@@ -60,7 +60,8 @@ def individual_metrics_dataframe() -> pd.DataFrame:
 
     # Transform HVs with log2, and 8 decimal places of precision.
     transformed_hv = np.round(np.log2(np.array(hypervolumes)), 8)
-   
+    transformed_hv[transformed_hv == -np.inf] = 0
+    
     # Compute metrics
     names = list(individuals.keys())
     phenotypes = list(individuals.values())
@@ -195,14 +196,18 @@ def generational_metrics(metrics: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
         pop_phenotypes, off_phenotypes = load_generation(gen)
 
         # Compute HVs and rankings
-        rankings, hypervolumes = compute_hypervolumes(pop_phenotypes, gen)
+        #rankings, hypervolumes = compute_hypervolumes(pop_phenotypes, gen)
 
         # Map phenotypes into trees
         pop_trees = phenotypes_to_trees(pop_phenotypes)
         off_trees = phenotypes_to_trees(off_phenotypes)
 
         # Get the best individual tree
-        pop_best_tree = best_individual(pop_trees, rankings)
+        pop_best_tree = list(pop_trees.values())[0]
+        #if gen == 0:
+        #    pop_best_tree = best_individual(pop_trees, rankings)
+        #else:
+        #    pop_best_tree = list(pop_phenotypes.values())[0]
 
         # Compute metrics
         pop_row, pop_raw_row = compute_metrics(metrics, pop_trees, pop_best_tree)

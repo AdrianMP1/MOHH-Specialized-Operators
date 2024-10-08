@@ -118,10 +118,13 @@ def compute_hypervolumes(individuals: dict[str,str], generation: int):
         consolidated = read_json(consolidated_path)
 
         # Get primary front
-        best_front = consolidated["Front_000"]
+        best_front = np.array(consolidated["Front_000"])
 
         # Get nadir point
-        nadir_point = consolidated["nadir_point"]
+        nadir_point = best_front.max(axis=0)
+        #nadir_point = consolidated["nadir_point"]
+
+        del consolidated
 
         # Initialize HV
         metric = HV(ref_point=nadir_point)

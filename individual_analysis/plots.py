@@ -2,7 +2,7 @@
 import os
 import numpy as np
 import pandas as pd
-import seaborn as sns
+#import seaborn as sns
 import matplotlib.pyplot as plt
 
 from matplotlib.axes import Axes
@@ -20,12 +20,16 @@ ticks_fontsize: int = 12
 global_slidewindow: int = 3
 
 # Subtrees
-ALPHA = 0.05
+ALPHA = 0.01
 MAX_SUBTREES = 5
 common_subtrees = ["x()", "y()", "sin(x())", "sin(y())", "cos(x())", "cos(y())"]
 
 boxplots_width = 0.5
 colors_category = ["limegreen", "darkorange", "crimson"]
+
+colors = (plt.rcParams['axes.prop_cycle'].by_key()['color'])
+global_colors = [[int(h[1:][i:i+2],16)/255 for i in (0,2,4)] for h in colors]
+        
 
 meanprops = dict(color='green', linestyle='--')
 medianprops = dict(color='orange', linestyle='-')
@@ -523,15 +527,22 @@ def subtree_plots(kind: str="population"):
         ## * To Syntax Tree
         # Use the phenotype to syntax tree, then to graphviz
         
-        new_path = os.path.join(target_path, name)
+        new_path = os.path.join(target_path, name.lower())
+        os.makedirs(new_path, exist_ok=True)
         for i, subtree in enumerate(filtered_colums):
             
             # Remove empty parentheses
+            #! ERROR: Subtree files in individuals directory returns the string of syntax tree,
+            #! We need to return the phenotype. For example phenotype = y-x, str(syntax_tree) = -(y(),x())
+            #! Fix from metrics.subtree_characteristics & auxiliars.tree
             subtree = subtree.replace("()","")
 
             # Make syntax tree
-            syntax_tree = parse_expression(subtree)
-
+            # TODO: Manual fix for subtree, automate it.
+            try:
+                syntax_tree = parse_expression(subtree)
+            except:
+                syntax_tree = parse_expression(subtree)
             # Make figure
             graph = make_graphviz_tree(syntax_tree)
             render_tree(graph, file_path=new_path,
@@ -550,8 +561,7 @@ def subtree_plots(kind: str="population"):
             x_new = (x0 + (len(filtered_colums)-1)*distance) + 3*distance
             x0 = x_new
 
-        colors = (plt.rcParams['axes.prop_cycle'].by_key()['color'])[:MAX_SUBTREES]
-        colors = [[int(h[1:][i:i+2],16)/255 for i in (0,2,4)] for h in colors]
+        colors = global_colors[:MAX_SUBTREES]
 
         box_fig, box_ax = create_wide_figure()
         
@@ -698,8 +708,7 @@ def nonterminal_plots(kind: str="population"):
         generations = [start_gen, len(depths)//2, len(depths) - 1 + start_gen]
     
         x_positions = [1.5, 4.5, 7.5]
-        colors = (plt.rcParams['axes.prop_cycle'].by_key()['color'])[:3]
-        colors = [[int(h[1:][i:i+2],16)/255 for i in (0,2,4)] for h in colors]
+        colors = global_colors[:3]
 
         box_fig, box_ax = create_wide_figure()
 
@@ -741,6 +750,359 @@ def nonterminal_plots(kind: str="population"):
         plt.close(box_fig)
 
 
+def hv_with_tree(data: dict[str, pd.DataFrame]):
+
+    # * Prepare data
+    params = Params()
+    current_path = params["PLOTS_PATH_CURRENT"]
+    individuals_path = params["INDIVIDUALS_PATH"]
+
+    hv_tree_path = os.path.join(current_path, "hv_video", "frames")
+    os.makedirs(hv_tree_path, exist_ok=True)
+
+    generations = list(data.keys())[1:]
+    num_generations = len(generations)
+    
+    max_hvs = []
+    avg_hvs = []
+    avg_ted = []
+    best_individuals = []
+
+    for generation in generations:
+        current_data: pd.DataFrame = data[generation]
+
+        avg_ted.append(current_data["TED"].mean())
+        max_hvs.append(current_data["Instance_KC10-2fl-1rl_log2(HV)"].max()) # TODO: Define the instance, or for all instances??
+        avg_hvs.append(current_data["Instance_KC10-2fl-1rl_log2(HV)"].mean())
+        best_individuals.append(current_data.index[0])
+
+
+    # * Prepare plots
+    fig = plt.figure(figsize=(10,5))
+    ax1 = plt.subplot(2,2,1)
+    ax2 = plt.subplot(2,2,3, sharex=ax1)
+    ax3 = plt.subplot(1,2,2)
+    ax3.axis("off")
+    axes = [ax1, ax2, ax3]
+
+    axes[0].set_ylabel(r"$log_{2}(HV)$", fontsize=ticks_fontsize)
+    #axes[0].set_title(r"$log_{2}(HV)$", fontsize=labels_fontsize)
+    axes[0].tick_params(labelbottom=False)
+    axes[1].set_ylabel(f"Tree-Edit Distance", fontsize=ticks_fontsize)
+   # axes[1].set_title("Diversity", fontsize=labels_fontsize)
+    axes[1].set_xlabel("Generation", fontsize=ticks_fontsize)
+    axes[0].set_xlim(1, num_generations)
+    axes[0].set_ylim(min(avg_hvs)*0.99, max(max_hvs)*1.01)
+    axes[1].set_ylim(min(avg_ted)*0.99, max(avg_ted)*1.01)
+
+    fig.align_ylabels([ax1,ax2])
+    plt.tight_layout()
+
+    xdata = []
+    ydata = [[], [], []]
+    line = [None, None, None]
+    line[0], = axes[0].plot(xdata, ydata[0], linewidth=1.5, c=global_colors[1], linestyle="-" , marker="o")
+    line[1], = axes[0].plot(xdata, ydata[1], linewidth=1.5, c=global_colors[2], linestyle="--", marker="^")
+    line[2], = axes[1].plot(xdata, ydata[2], linewidth=1.5, c='k',              linestyle="-" , marker="o")
+
+    for gen in range(num_generations):
+        
+        current_hv = max_hvs[gen]
+        current_ted = avg_ted[gen]
+        current_avg_hv = avg_hvs[gen]
+        best_individual = best_individuals[gen]
+
+        # HV line
+        xdata.append(gen+1)
+        ydata[0].append(current_hv)
+        line[0].set_data(xdata, ydata[0])
+
+        # Average HV line
+        ydata[1].append(current_avg_hv)
+        line[1].set_data(xdata, ydata[1])
+
+        # Diversity line
+        ydata[2].append(current_ted)
+        line[2].set_data(xdata, ydata[2])
+        plt.draw()
+
+        # Draw tree
+        individual_path = os.path.join(individuals_path, best_individual, f"Tree_{best_individual}")
+        img = plt.imread(individual_path + ".gv.png")
+        axes[-1].cla()
+        axes[-1].axis("off")
+        axes[-1].imshow(img)
+        
+        # Save frame
+        frame_path = os.path.join(hv_tree_path, f"Frame_{gen:03d}.png")
+        #plt.pause(0.1)
+        fig.savefig(frame_path, dpi=250)
+    #plt.show()
+
+from pymoo.indicators.igd_plus import IGDPlus
+from pymoo.indicators.hv import HV
+from auxiliars.individuals_auxiliars import get_generation_files, load_generation
+from auxiliars.file_operations import read_json
+
+def non_dominated_sorting(solutions):
+    """
+    Compute the non dominated sorting.
+    """
+
+    fronts = [[]]
+    rank = dict()
+
+    domination_count = dict()
+    dominated_solutions = dict()
+    
+    for p in solutions:
+        
+        dominated_solutions[p] = []
+        domination_count[p] = 0
+
+        # Compute the domination counter of p
+        for q in solutions:
+
+            if dominates(p, q):
+                # Add q to the set of solutions dominated by p
+                dominated_solutions[p].append(q)
+            elif dominates(q, p):
+                domination_count[p] += 1
+        
+        # If p belongs to the first front
+        if domination_count[p] == 0:
+            fronts[0].append(p)
+            rank[p] = 0
+    return fronts
+
+
+def dominates(individual1, individual2):
+    """
+    Return True if individual 1 dominates individual 2, else False.
+    """
+    sign = -1
+    better_in_at_least_one = False
+
+    # Check if A is strictly better than B in at least one objective
+    for a, b in zip(individual1, individual2):
+        if sign * a < sign * b:
+            # If A is worse in any objective, it doesn't dominates B
+            return False
+        if sign * a > sign * b:
+            # If A is better in any objective, mark this condition
+            better_in_at_least_one = True
+    
+    # A dominates B if A is better in at least one objective and
+    # equal in the others.
+
+    return better_in_at_least_one
+
+def front_evolution():
+
+    params = Params()
+
+    experiment_path = params["EXPERIMENT_PATH"]
+    individuals_path = params["INDIVIDUALS_PATH"]
+    generations_path = params["GENERATIONS_PATH"]
+
+    current_path = params["PLOTS_PATH_CURRENT"]
+    front_evolution_path = os.path.join(current_path, "frontEvolution")
+    os.makedirs(front_evolution_path, exist_ok=True)
+
+    num_generations = len(os.listdir(generations_path))
+
+    instances = get_generation_files(os.path.join(generations_path, "generation_0000"))
+
+    for instance in instances:
+
+        # Adjust instance name for individuals
+        individual_instance: str = instance.replace("Instance_Fronts", "instance")
+
+        # Make path
+        instance_save_path = os.path.join(front_evolution_path, individual_instance.removesuffix(".json"))
+        os.makedirs(instance_save_path, exist_ok=True)
+
+        # To save generation fronts and igd+
+        igd_metric = []
+        nadir_points = []
+        generation_fronts = []
+        generation_zerofronts = []
+
+        # Limits
+        x_limits = [float("inf"), float("-inf")]
+        y_limits = [float("inf"), float("-inf")]
+
+        # * Get data
+        for gen in range(num_generations):
+
+            # Get population pointers
+            population, offspring = load_generation(gen)
+
+            # Get only the names
+            individuals = list(population.keys())
+
+            # Variable to merge fronts
+            individual_fronts = list()
+
+            for individual in individuals:
+                
+                # Make path
+                individual_path = os.path.join(individuals_path, individual, individual_instance)
+
+                # Get data
+                individual_data = read_json(individual_path)
+
+                # Get Front
+                front = individual_data["front"]
+
+                # Get max and min values
+                max_values = [max(obj) for obj in zip(*front)]
+                min_values = [min(obj) for obj in zip(*front)]
+
+                # Update limits
+                if max_values[0] > x_limits[1]:
+                    x_limits[1] = max_values[0]
+
+                if min_values[0] < x_limits[0]:
+                    x_limits[0] = min_values[0]
+
+                if max_values[1] > y_limits[1]:
+                    y_limits[1] = max_values[1]
+                
+                if min_values[1] < y_limits[0]:
+                    y_limits[0] = min_values[1]
+
+                # Add to the generation front
+                individual_fronts.append(front)
+
+            # Compute Nadir
+            consolidated = set()
+            for front in individual_fronts:
+                front = set([tuple(point) for point in front])
+                consolidated = consolidated.union(front)
+            front_zero = non_dominated_sorting(consolidated)[0]
+            nadir_point = list(map(max, zip(*front_zero)))
+            nadir_points.append(nadir_point)
+
+            # Compute IGD+
+            if gen > 0:
+                indicator = IGDPlus(np.array(front_zero))
+                igd_plus = indicator(generation_zerofronts[gen-1])
+                igd_metric.append(igd_plus)
+            
+            generation_fronts.append(individual_fronts)
+            generation_zerofronts.append(np.array(front_zero))
+
+        # * Process data
+        last_nadir = nadir_points[-1]
+        hv_indicator = HV(ref_point=last_nadir)
+
+        consolidated_fronts = []
+        hypervolumes_generations = []
+
+        for gen in range(num_generations):
+            
+            # Get current data, compute HV with last nadir
+            hypervolumes = []
+            current_data = generation_fronts[gen]
+
+            for individual_front in current_data:
+                hv = hv_indicator(np.array(individual_front))
+                
+                # If the front is outside nadir's scope, set hv to 0, else log2(hv)
+                if hv > 1:
+                    log2_hv = np.log2(hv)
+                else:
+                    log2_hv = 0
+
+                hypervolumes.append(log2_hv)
+
+                if hypervolumes[-1] == float("-inf"):
+                    print("Error")
+            
+            hypervolumes_generations.append(np.mean(hypervolumes).item())
+
+            consolidated = set()
+            for front in current_data:
+                front = set([tuple(point) for point in front])
+                consolidated = consolidated.union(front)
+            consolidated = np.array(list(consolidated))
+            consolidated_fronts.append(consolidated)
+
+        del generation_fronts, individual_fronts, current_data
+
+        # * Make figure
+        fig = plt.figure(figsize=(10,5))
+
+        # Make subplots
+        ax1 = plt.subplot(1,2,1)
+        ax2 = plt.subplot(2,2,2)
+        ax3 = plt.subplot(2,2,4, sharex=ax2)
+
+        ax1.set_title("Population first front")
+        ax1.set_xlabel(r"$f_{1}$")
+        ax1.set_ylabel(r"$f_{2}$")
+        
+        ax1.set_xlim(x_limits[0]*0.99, x_limits[1]*1.01)
+        ax1.set_ylim(y_limits[0]*0.99, y_limits[1]*1.01)
+
+        ax2.set_title("Hypervolume (Last Nadir-Point)")
+        ax2.tick_params(labelbottom=False)
+        ax2.set_ylabel(r"$log_{2}(HV)$")
+        ax2.set_xlim(0, num_generations)
+        ax2.set_ylim(min(hypervolumes_generations)*0.99, max(hypervolumes_generations)*1.01)
+
+        ax3.set_title("Front movement")
+        ax3.set_xlabel("Generations")
+        ax3.set_ylabel("IGD+")
+        ax3.set_ylim(min(igd_metric)*0.99, max(igd_metric)*1.01)
+        
+        fig.align_ylabels([ax2,ax3])
+        plt.tight_layout()
+
+
+        xdata = []
+        ydata = [[],[]]
+        line = [None, None]
+        line[0], = ax2.plot(xdata, ydata[0], linewidth=1.5, c="r", linestyle="-", marker="o")
+        line[1], = ax3.plot(xdata, ydata[1], linewidth=1.5, c=global_colors[9], linestyle="--", marker="^")
+
+
+        ax1.scatter(last_nadir[0], last_nadir[1], s=70, color="r", marker="*")
+        for gen in range(num_generations):
+            
+            # Plot fronts
+            frontzero = generation_zerofronts[gen]
+            consolidated = consolidated_fronts[gen]
+            
+            draw_points = ax1.scatter(consolidated[:,0], consolidated[:,1], s=20, color=global_colors[0])
+            frontzero_points = ax1.scatter(frontzero[:,0], frontzero[:,1], s=30, color=global_colors[1])
+            current_nadir = ax1.scatter(nadir_points[gen][0], nadir_points[gen][1], s=70, color="tab:green", marker="*")
+
+            # HV line
+            xdata.append(gen)
+            ydata[0].append(hypervolumes_generations[gen])
+            line[0].set_data(xdata, ydata[0])
+
+            # IGD+
+            if gen > 0:
+                ydata[1].append(igd_metric[gen-1])
+                line[1].set_data(xdata[1:], ydata[1])
+
+            plt.draw()
+
+            frame_name = os.path.join(instance_save_path, f"Frame_{gen:03d}.png")
+            fig.savefig(frame_name, dpi=250)
+            draw_points.remove()
+            frontzero_points.remove()
+            current_nadir.remove()
+            plt.pause(0.01)
+
+        plt.close(fig)
+
+
+
+
 def make_plots(data: dict[str,pd.DataFrame], offspring: bool = False):
 
     # Note: Data contains a dataframe per generation.
@@ -763,9 +1125,14 @@ def make_plots(data: dict[str,pd.DataFrame], offspring: bool = False):
     ## Get columns
     columns = df.columns
     instance_columns = sorted(list(set([column for column in columns if column.startswith("Instance")])))
+
+    del df
     
     # First, make HVs plots
     hypervolume_plots(data, instance_columns)
+
+    # Hypervolume with best tree
+    hv_with_tree(data)
 
     # Structural Plots
     structural_plots(data, instance_columns)
@@ -777,4 +1144,9 @@ def make_plots(data: dict[str,pd.DataFrame], offspring: bool = False):
     nonterminal_plots()
 
     # Correlations & Patterns
+
+    del data
+    
+    # Pareto fronts
+    front_evolution()
     

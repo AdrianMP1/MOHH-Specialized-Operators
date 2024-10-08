@@ -52,19 +52,19 @@ def extract_qap_parameters(file_name: str):
 
 if __name__ == "__main__":
 
-    instance_path = "datasets\\mqap\\train\\"
+    instance_path = "datasets/mqap/train/"
 
-    initial_solutions_path = "results\DESKTOP-E3F66CS_2024_8_26_0107_690874_GOOD\initial_solutions"
+    initial_solutions_path = "results/DESKTOP-E3F66CS_2024_8_26_2217_148643/initial_solutions"
     initial_solutions_names = os.listdir(initial_solutions_path)
     
-    generations_path = "results\DESKTOP-E3F66CS_2024_8_26_0107_690874_GOOD\generations"
+    generations_path = "results/DESKTOP-E3F66CS_2024_8_26_2217_148643/generations"
     generations = os.listdir(generations_path)
 
     # Extract initial solutions
     initial_solutions = {}
     for instance_name in initial_solutions_names:
 
-        solutions = extract_initial_solutions(initial_solutions_path + "\\" + instance_name)
+        solutions = extract_initial_solutions(initial_solutions_path + "/" + instance_name)
 
         n_var, k_obj = extract_qap_parameters(instance_name)
 
@@ -101,7 +101,7 @@ if __name__ == "__main__":
             # Get limits (Expensive)
             limits = [[float("inf"), float("-inf")], [float("inf"), float("-inf")]]
             for gen in generations:
-                gen_path = generations_path + "\\" + gen + "\\" + "Instance_Fronts_" + instance_name.replace(".txt", ".json")
+                gen_path = generations_path + "/" + gen + "/" + "Instance_Fronts_" + instance_name.replace(".txt", ".json")
 
                 # Extract data from json file
                 with open(gen_path, "r") as f:
@@ -124,7 +124,7 @@ if __name__ == "__main__":
                             limits[j][0] = min_values[j]
                     
         for gen in generations:
-            gen_path = generations_path + "\\" + gen + "\\" + "Instance_Fronts_" + instance_name.replace(".txt", ".json")
+            gen_path = generations_path + "/" + gen + "/" + "Instance_Fronts_" + instance_name.replace(".txt", ".json")
 
             # Extract data from json file
             with open(gen_path, "r") as f:

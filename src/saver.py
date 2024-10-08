@@ -115,6 +115,7 @@ class PopulationSaver():
 
         # Generation directory
         generation_dir = path.join(self.generations_dir, f"generation_{generation:04d}")
+        makedirs(generation_dir, exist_ok=True)
 
         # Save consolidated fronts per instance
         for instance in instances:

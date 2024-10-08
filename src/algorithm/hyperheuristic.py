@@ -17,7 +17,7 @@ from utilities.print_utils import update_lines
 from utilities.load_modules import find_module
 from utilities.algorithm.MO import compute_nadir_point
 from utilities.algorithm.MO import compute_hypervolume
-from utilities.algorithm.MO import non_dominated_sorting
+from utilities.algorithm.MO import non_dominated_sorting_vectorized
 from utilities.algorithm.HH_auxiliars import compute_rank
 from utilities.algorithm.HH_auxiliars import test_individual
 
@@ -114,7 +114,7 @@ class HyperHeuristic():
         pbar = tqdm(self.population.non_evaluated(), desc="Evaluating...",
                     bar_format="{l_bar}{bar:20}{r_bar}", leave=True)
         
-        # Evaluate individuals
+        # Evaluate non-evaluated individuals
         for individual in pbar:
 
             # Create a MOSolver for the individual
@@ -186,7 +186,7 @@ class HyperHeuristic():
         pbar = tqdm(self.instances, desc="Computing metrics...",
                      bar_format="{l_bar}{bar:20}{r_bar}", leave=True)
 
-        # For each individual...
+        # For each instance...
         for i, instance in enumerate(pbar):
                 
             # Instance name
@@ -196,14 +196,14 @@ class HyperHeuristic():
             sorting_time_init = time.time()
 
             # If instance already has fronts...
-            if instance.fronts:
+            #if instance.fronts:
                 
-                # Merge all fronts with non-dominated front
-                for front in instance.fronts:
-                    instance.non_dominated_front = instance.non_dominated_front.union(front)
+            #    # Merge all fronts with non-dominated front
+            #    for front in instance.fronts:
+            #        instance.non_dominated_front = instance.non_dominated_front.union(front)
 
             # Compute non-dominated-sorting on each instance non-dominated-front.    
-            instance.fronts = non_dominated_sorting(instance.non_dominated_front)
+            instance.fronts = non_dominated_sorting_vectorized(instance.non_dominated_front)
 
             # Measure non dominated sorting end time [min]
             sorting_time = (time.time() - sorting_time_init) / 60
@@ -213,10 +213,6 @@ class HyperHeuristic():
 
             # Compute Nadir Points
             instance.nadir_point = compute_nadir_point(instance.non_dominated_front)
-
-            # Verify that new Nadir Point is indeed worst # TODO: IMPROVE IT (location maybe?, the way consolidated is updated influences.)
-            # For now it will work with a new nadir every time.
-            #instance.nadir_point = list(map(max, zip(*[instance.nadir_point, instance.previous_nadir_point])))
 
             # Measure Hypervolume computation time.
             hv_time_init = time.time()
@@ -262,7 +258,7 @@ class HyperHeuristic():
             update_lines(["Sorting: " + sorting_text,
                         "Hypervolumes: " + hv_text])
 
-        # Once an individual computed its hypervolumes across all instances,
+        # Once an individual computes its hypervolumes across all instances,
         # mark it as evaluated.
         for individual in self.population.non_evaluated():
             # Mark the individual as evaluated.
@@ -393,6 +389,21 @@ class HyperHeuristic():
         for individual in self.population.individuals:
             individual.is_offspring = False
 
+        # Update consolidated front
+        for instance in self.instances:
+
+            # Instance name
+            instance_name = instance.instance_name
+
+            # Reset non dominated front
+            instance.non_dominated_front = set()
+
+            for individual in self.population.individuals:
+                # Add front to the consolidated
+                pareto_front = individual.pareto_fronts[instance_name]
+                instance.non_dominated_front = \
+                    instance.non_dominated_front.union( [tuple(element) for element in pareto_front.tolist()] )            
+
         return scores
 
     def run(self):
@@ -450,15 +461,17 @@ class HyperHeuristic():
             # Save offspring in disk
             population_saver.save_population(self.population, generation=gen-1)
 
+            # Save consolidated and front (Consolidated of current pop + offspring)
+            population_saver.save_consolidated_fronts(self.instances, generation=gen)
+
             # Replace current population with offsprings.
             scores = self.replace_step(scores)
 
             # Note: Replace deletes the worst n individuals in the population,
             # therefore, population has now a size of N.
 
-            # Save current population in disk
+            # Save new population in disk
             population_saver.save_population(self.population, generation=gen)
-            population_saver.save_consolidated_fronts(self.instances, generation=gen)
             
             print(f"\nBest Individual: {self.population.individuals[0].phenotype}")
             logger.info(f"Best Individual: {self.population.individuals[0].phenotype}")

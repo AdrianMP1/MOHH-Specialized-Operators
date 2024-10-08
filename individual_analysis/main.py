@@ -1,7 +1,7 @@
 
 from handle_params import Params, set_params
 
-#from graphviz_creator import map_individuals_to_trees
+from graphviz_creator import map_individuals_to_trees
 
 from plots import make_plots
 from individual_operations import generational_metrics
@@ -11,13 +11,13 @@ from individual_operations import individual_metrics_dataframe
 def main():
 
     # Select experiment
-    experiment_name: str = "DESKTOP-E3F66CS_2024_8_26_2217_148643"
+    experiment_name: str = ""
 
     # Set parameters
     set_params(experiment_name)
     
     # Create individuals tree representation
-    #map_individuals_to_trees()
+    map_individuals_to_trees()
 
     # Compute generation independent metrics
     ## Balance, Skewness, Depth, Size, Entropy, Path Length Variance
@@ -31,17 +31,11 @@ def main():
     # Compute generation dependent metrics
     full_pop_dfs, full_off_dfs = generational_metrics(metrics_df)
 
-    # Plot best individual per generation with its tree
-    #hv_with_tree(full_pop_dfs)
-
     del metrics_df
     
     # Make plots
     make_plots(full_pop_dfs)
     #make_plots(full_off_dfs, offspring=True)
-
-    # TODO: The only thing yet to do is, where the fronts should be plotted?
-    
 
 if __name__ == "__main__":
     main()

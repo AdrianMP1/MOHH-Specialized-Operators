@@ -28,7 +28,7 @@ mo_params = {
 
     # Mutation
     'MOEAD_MUTATION': "PM_Mutation", # PM
-    'MOEAD_MUTATION_PROBABILITY': 0.01,
+    'MOEAD_MUTATION_PROBABILITY': 0.05,
     'MOEAD_MUTATION_BOOL': False,
 
 
@@ -41,7 +41,7 @@ mo_params = {
 
     # Mutation
     'NSGA_MUTATION': "PM_Mutation", # PM
-    'NSGA_MUTATION_PROBABILITY': 0.01,
+    'NSGA_MUTATION_PROBABILITY': 0.05,
     'NSGA_MUTATION_BOOL': False,
 
 }

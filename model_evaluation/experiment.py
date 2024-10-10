@@ -15,7 +15,7 @@ from problem.instance import Instance
 
 from algorithms import MOEA_Decomposition, NSGAII, IBEA
 
-n_experiments = 10
+n_experiments = 30
 solution_type = "Real"
 
 my_operator = "masked_cross(y,sin(sin(sin(x))))"
@@ -67,6 +67,9 @@ def run_experiments():
     # Get instances
     instances = instance_paths()
 
+    # Total time
+    program_time = time.time()
+
     for instance_path in instances:
 
         # Instance time
@@ -76,7 +79,7 @@ def run_experiments():
         instance = Instance(params["MO_POPULATION_SIZE"], params["SOLUTION_TYPE"])
 
         # Get instance name
-        instance_name = instance_path.split("/")[-1]
+        instance_name = instance_path.split("\\")[-1]
         instance_name = instance_name.removesuffix(".txt")
 
         # Load problem & Create initial population for MO for all experiments
@@ -223,6 +226,11 @@ def run_experiments():
 
     # * Now, we have K dataframes, one for each instance.
 
+    program_total_time = time.time() - program_time
+    minutes = round(program_total_time /60 , 4)
+    hours = round(program_total_time / 3600, 4)
+
+    print(f"\nProgram Time - Minutes: {minutes}, Hours: {hours}\n")
 
 if __name__ == "__main__":
     run_experiments()

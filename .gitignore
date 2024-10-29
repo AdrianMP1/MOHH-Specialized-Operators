@@ -1,6 +1,7 @@
 *__pycache__
 results*/
 temporal*/
+analysis_express*/
 *.png
 *.gv
 *.zip

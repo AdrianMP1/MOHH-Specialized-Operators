@@ -16,6 +16,7 @@ from pymoo.util.ref_dirs import get_reference_directions
 
 from pymoo.algorithms.moo.moead import MOEAD
 from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.algorithms.moo.sms import SMSEMOA
 
 class MOSolver(ABC):
 
@@ -227,6 +228,67 @@ class NSGAII(MOSolver):
             number_unique_results, number_unique_pareto_front)
 
 
+class SMS_MOEA(MOSolver):
+    def __init__(self) -> None:
+        super().__init__()
+    
+    def start_model(self, seed):
+        """
+        Start the MOEA.
+        
+        @param model_name: MOEA solver name.
+        """
+
+        # Build algorithm
+        self.algorithm = SMSEMOA(
+            pop_size=self.pop_size,
+            sampling=self.pop,
+            crossover=self.crossover,
+            mutation=self.mutation
+        )
+        # Implicit operators
+        # Tournament selection
+        # Survival LeastHypervolumeContributionSurvival
+
+        self.algorithm.setup(self.problem, termination=("n_gen", self.generations),
+                             verbose=False, seed=seed)
+    
+    def solve_instance(self):
+        """
+        MOEA execution
+        """
+
+        while self.algorithm.has_next():
+
+            # Ask the algorithm for the next population
+            pop = self.algorithm.ask()
+
+            # Evaluate population
+            self.algorithm.evaluator.eval(self.problem, pop)
+
+            # Return the evaluated individuals
+            self.algorithm.tell(infills=pop)
+
+        # Extract results
+        results = self.algorithm.result()
+        pareto_set = results.X
+        pareto_front = results.F
+
+        # Get the number of individuals weakly non-dominated
+        number_weak_non_dominated = len(pareto_set)
+
+        # Get the number of truly unique individuals
+        number_unique_results = len(np.unique(pareto_set, axis=0))
+
+        # Filter by unique elements in the pareto front
+        pareto_front, mask = np.unique(pareto_front, return_index=True, axis=0)
+        pareto_set = pareto_set[mask]
+
+        # Get the number of unique individuals from pareto front
+        number_unique_pareto_front = len(pareto_front)
+
+        return (pareto_set, pareto_front, number_weak_non_dominated,
+            number_unique_results, number_unique_pareto_front)
 
 class IBEA():
     pass

@@ -14,7 +14,7 @@ mo_params = {
 
     # Evolutionary parameters
     'MO_POPULATION_SIZE': 105,
-    'MO_GENERATIONS': 500,
+    'MO_GENERATIONS': 100,
 
 
     # ----------------
@@ -43,6 +43,18 @@ mo_params = {
     'NSGA_MUTATION': "PM_Mutation", # PM
     'NSGA_MUTATION_PROBABILITY': 0.05,
     'NSGA_MUTATION_BOOL': False,
+
+    # ----------------
+    # SMS-EMOA Parameters
+
+    # Crossover
+    'SMS_CROSSOVER': None,
+    'SMS_CROSSOVER_PROBABILITY': 1.0,
+
+    # Mutation
+    'SMS_MUTATION': "PM_Mutation",
+    'SMS_MUTATION_PROBABILITY': 0.05,
+    'SMS_MUTATION_BOOL': False
 
 }
 

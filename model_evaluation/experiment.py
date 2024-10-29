@@ -7,18 +7,34 @@ import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
 
+from itertools import product
+
 from params import Params, set_params
 from utilities.instance_utils import instance_paths
 from utilities.algorithm.MO import compute_nadir_point, compute_hypervolume, non_dominated_sorting_vectorized
 
 from problem.instance import Instance
 
-from algorithms import MOEA_Decomposition, NSGAII, IBEA
+from algorithms import MOEA_Decomposition, NSGAII, SMS_MOEA, IBEA
 
-n_experiments = 30
+n_experiments = 10
 solution_type = "Real"
 
-my_operator = "masked_cross(y,sin(sin(sin(x))))"
+# Solvers
+solver_names = ["SMS_EMOA", "NSGAII", "MOEAD"]
+
+# Best, middle, worst
+my_operators = ["masked_cross(y,sin(sin(sin(x))))",
+            "(sin(cos(cos((y - sin(masked_cross(y,cos(x))))))) + y)", 
+            "(sin(cos(cos((y - sin(masked_cross(y,sin(one_point(cos(masked_cross(y,(convolution(one_point(x,sin(convolution(masked_cross(y,y),x))),sin(convolution((x - x),x))) - x))),x)))))))) + y)"]
+
+all_crossover = [("operator_template", my_operators[0], "Best"),
+                 ("operator_template", my_operators[1], "Middle"),
+                 ("operator_template", my_operators[2], "Worst"),
+                 ("crossover", "SBX_Cross", "Standar")]
+
+all_mutation = ["NullMutation", "PM_Mutation"]
+
 
 def make_experiment_paths():
 
@@ -53,7 +69,54 @@ def generate_incremental_seeds(seeds_number: int) -> list:
     
     return seeds
 
-def run_experiments():
+
+def get_combinations():
+
+    combinations = [(op[0], op[1], mutation, op[2]) for op, mutation in product(all_crossover, all_mutation)]
+
+    sorted_combinations = sorted(combinations, key = lambda x: (x[2], x[0], x[3], x[1]))
+
+    return sorted_combinations
+
+
+def build_solver(solver_name, cross_type, crossover, mutation):
+
+    params = Params()
+    
+    if solver_name == "MOEAD":
+        solver = MOEA_Decomposition()
+        cross_prob = params["MOEAD_CROSSOVER_PROBABILITY"]
+        mutation_prob = params["MOEAD_MUTATION_PROBABILITY"]
+    
+    elif solver_name == "NSGAII":
+        solver = NSGAII()
+        cross_prob = params["NSGA_CROSSOVER_PROBABILITY"]
+        mutation_prob = params["NSGA_MUTATION_PROBABILITY"]
+                
+    elif solver_name == "SMS_EMOA":
+        solver = SMS_MOEA()
+        cross_prob = params["SMS_CROSSOVER_PROBABILITY"]
+        mutation_prob = params["SMS_MUTATION_PROBABILITY"]
+    
+    else:
+        raise(ValueError)
+    
+    # LOAD CROSSOVER
+    if cross_type == "operator_template":
+        solver.load_operator(cross_type, "HH_Operator",
+                             operator=crossover,
+                             solution_type=solution_type,
+                             prob=cross_prob)
+    else:
+        solver.load_operator(cross_type, crossover, prob=cross_prob)
+    
+    # LOAD MUTATION
+    solver.load_operator("mutation", mutation, prob=mutation_prob)
+
+    return solver
+
+
+def run_experiments() -> str:
 
     # Set the parameters
     set_params()
@@ -94,74 +157,45 @@ def run_experiments():
         # To store fronts for that instance-operators-model
         fronts_model_level = {}
 
-        # For each algorithm...
-        for operator_kind in ["Our_withMutation", "Our_noMutation", "Standar"]:
+        # For each operators combination
+        for combination in get_combinations():
 
-            if operator_kind == "Our_withMutation":
-                # Load operator
-                operator_type = "operator_template"
-                cross_operator = my_operator
-                mutation_operator = "PM_Mutation"
+            cross_type = combination[0]
+            cross_operator = combination[1]
+            mutation_operator = combination[2]
+            combination_name = combination[3]
 
-            elif operator_kind == "Our_noMutation":
-                # Load operator
-                operator_type = "operator_template"
-                cross_operator = my_operator
-                mutation_operator = "NullMutation"
+            for solver_name in solver_names:
 
-            else:
-                operator_type = "crossover"
-                cross_operator = "SBX_Cross"
-                mutation_operator = "PM_Mutation"
-
-            for algorithm_name in ["NSGAII", "MOEAD"]:
-
-                # Make solver
-                if algorithm_name == "MOEAD":
-                    solver = MOEA_Decomposition()
-                    cross_prob = params["MOEAD_CROSSOVER_PROBABILITY"]
-                    mutation_prob = params["MOEAD_MUTATION_PROBABILITY"]
-
-                elif algorithm_name == "NSGAII":
-                    solver = NSGAII()
-                    cross_prob = params["NSGA_CROSSOVER_PROBABILITY"]
-                    mutation_prob = params["NSGA_MUTATION_PROBABILITY"]
-                
-                if "Our" in operator_kind:
-                    solver.load_operator(operator_type, "HH_Operator",
-                                         operator=cross_operator,
-                                         solution_type=solution_type,
-                                         prob=cross_prob)
-                    
-                else:
-                    solver.load_operator(operator_type, cross_operator,
-                                          prob=cross_prob)
-                    
-                solver.load_operator("mutation", mutation_operator,
-                                         prob=mutation_prob)
+                # Get solver
+                solver = build_solver(solver_name, cross_type, cross_operator, mutation_operator)
 
                 # To store pareto fronts for that instance-operators-model-experiment
                 fronts_exp_level = {}
 
                 # Perform N experiments with this configuration
-                for i in tqdm(range(1, n_experiments+1), desc=f"{algorithm_name}_{operator_kind}"):
+                with_crossover = "Own" if cross_type == "operator_template" else "SBX"
+                with_mutation = "No_Mutation" if mutation_operator == "NullMutation" else "With_Mutation"
 
+                for i in tqdm(range(1, n_experiments+1), desc=f"{solver_name} {with_crossover} {with_mutation}"):
+                    
                     # Set initial population for MO
                     instance.set_initial_solutions(experiment=i)
 
                     # Get seed
                     seed = seeds[i-1]
 
-                    # Send the instance to the MO solver
+                    # Send the instance to the solver
                     solver.load_instance(instance)
-                    # Start the model
+
+                    # Start model
                     solver.start_model(seed)
 
-                    # Solve the instance
+                    # Solve
                     results = solver.solve_instance()
 
                     # Extract results
-                    pareto_set, pareto_front = results[:2]
+                    _, pareto_front = results[:2]
 
                     # Store results
                     fronts_exp_level[f"Experiment {i:03d}"] = pareto_front
@@ -170,8 +204,10 @@ def run_experiments():
                     consolidated = consolidated.union([tuple(point) for point in pareto_front.tolist()])
 
                     #* Note: Each iteration of this loop, returns a pareto_front
-                
-                fronts_model_level[f"{algorithm_name}_{operator_kind}"] = fronts_exp_level
+
+                fronts_model_level[f"{solver_name}_{combination_name}_{with_mutation}"] = fronts_exp_level
+
+                del solver
 
                 #* At this point, we have N pareto fronts for that model
                 #* with those operators in that instance.
@@ -232,5 +268,10 @@ def run_experiments():
 
     print(f"\nProgram Time - Minutes: {minutes}, Hours: {hours}\n")
 
+    return params["RESULTS_PATH"]
+
+
 if __name__ == "__main__":
+    
+    # First execute the experiments, and generate data from it
     run_experiments()

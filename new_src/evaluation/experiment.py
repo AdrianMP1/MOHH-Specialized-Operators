@@ -1,0 +1,285 @@
+
+import os
+import time
+import random
+import pandas as pd
+
+from tqdm import tqdm
+from datetime import datetime
+
+from itertools import product
+
+from evaluation.params import Params, set_params
+from evaluation.utilities.instance_utils import instance_paths
+from evaluation.utilities.algorithm.MO import compute_nadir_point, compute_hypervolume, non_dominated_sorting_vectorized
+
+from evaluation.problem.instance import Instance
+
+from evaluation.algorithms import MOEA_Decomposition, NSGAII, SMS_MOEA, IBEA
+
+n_experiments = 2
+solution_type = "Real"
+
+# Solvers
+solver_names = ["SMSEMOA", "NSGAII", "MOEAD"]
+
+# Best, middle, worst
+#my_operators = ["masked_cross(y,sin(sin(sin(x))))",
+#            "(sin(cos(cos((y - sin(masked_cross(y,cos(x))))))) + y)", 
+#            "(sin(cos(cos((y - sin(masked_cross(y,sin(one_point(cos(masked_cross(y,(convolution(one_point(x,sin(convolution(masked_cross(y,y),x))),sin(convolution((x - x),x))) - x))),x)))))))) + y)"]
+
+#all_crossover = [("operator_template", my_operators[0], "Best"),
+#                 ("operator_template", my_operators[1], "Middle"),
+#                 ("operator_template", my_operators[2], "Worst"),
+#                 ("crossover", "SBX_Cross", "Standar")]
+
+all_mutation = ["NullMutation", "PM_Mutation"]
+
+
+def make_experiment_paths(experiment_path: str):
+
+    # Load params
+    params = Params()
+
+    folder_name = "evaluation_results"
+
+    dir_path = os.path.join(experiment_path, folder_name)
+    #dir_path = os.path.join("results_evaluation", folder_name)
+    initial_solutions_path = os.path.join(dir_path, "initial_solutions")
+
+    os.makedirs(dir_path, exist_ok=True)
+    os.makedirs(initial_solutions_path, exist_ok=True)
+
+    params["RESULTS_PATH"] = dir_path
+    params["FILE_PATH_INITIAL_SOLUTIONS"] = initial_solutions_path
+
+
+def generate_incremental_seeds(seeds_number: int) -> list:
+
+    # Get the initial time-based seed
+    start = datetime.now()
+    seed = int(start.microsecond)  # Use microsecond as the base seed
+    
+    seeds = [seed]  # Initialize the list with the first seed
+    
+    for i in range(1, seeds_number):
+        # Add a random increment (e.g., between 1 and 1000) to the previous seed
+        increment = random.randint(1, 1000)
+        new_seed = seeds[-1] + increment
+        seeds.append(new_seed)
+    
+    return seeds
+
+
+def get_combinations(all_crossover):
+
+    combinations = [(op[0], op[1], mutation, op[2]) for op, mutation in product(all_crossover, all_mutation)]
+
+    sorted_combinations = sorted(combinations, key = lambda x: (x[2], x[0], x[3], x[1]))
+
+    return sorted_combinations
+
+
+def build_solver(solver_name, cross_type, crossover, mutation):
+
+    params = Params()
+    
+    if solver_name == "MOEAD":
+        solver = MOEA_Decomposition()
+        cross_prob = params["MOEAD_CROSSOVER_PROBABILITY"]
+        mutation_prob = params["MOEAD_MUTATION_PROBABILITY"]
+    
+    elif solver_name == "NSGAII":
+        solver = NSGAII()
+        cross_prob = params["NSGA_CROSSOVER_PROBABILITY"]
+        mutation_prob = params["NSGA_MUTATION_PROBABILITY"]
+                
+    elif solver_name == "SMSEMOA":
+        solver = SMS_MOEA()
+        cross_prob = params["SMS_CROSSOVER_PROBABILITY"]
+        mutation_prob = params["SMS_MUTATION_PROBABILITY"]
+    
+    else:
+        raise(ValueError)
+    
+    # LOAD CROSSOVER
+    if cross_type == "operator_template":
+        solver.load_operator(cross_type, "HH_Operator",
+                             operator=crossover,
+                             solution_type=solution_type,
+                             prob=cross_prob)
+    else:
+        solver.load_operator(cross_type, crossover, prob=cross_prob)
+    
+    # LOAD MUTATION
+    solver.load_operator("mutation", mutation, prob=mutation_prob)
+
+    return solver
+
+
+def run_experiments(experiment_path, operators) -> str:
+
+    # Set operators
+    # Best, middle, worst
+    all_crossover = [("operator_template", operators[0], "Best"),
+                 ("operator_template", operators[1], "Middle"),
+                 ("operator_template", operators[2], "Worst"),
+                 ("crossover", "SBX_Cross", "Standar")]
+
+    # Set the parameters
+    set_params()
+
+    # Make folders
+    make_experiment_paths(experiment_path)
+
+    # Load parameters
+    params = Params()
+
+    # Get instances
+    instances = instance_paths()
+
+    # Total time
+    program_time = time.time()
+
+    for instance_path in instances:
+
+        # Instance time
+        instance_start = time.time()
+
+        # Initiate an instance object
+        instance = Instance(params["MO_POPULATION_SIZE"], params["SOLUTION_TYPE"])
+
+        # Get instance name
+        instance_name = instance_path.split("\\")[-1]
+        instance_name = instance_name.removesuffix(".txt")
+
+        # Load problem & Create initial population for MO for all experiments
+        instance.load_problem(params["PROBLEM_NAME"], instance_path, n_experiments)
+
+        # Make seeds
+        seeds = generate_incremental_seeds(n_experiments)
+
+        # Make a consolidated for instance
+        consolidated = set()
+
+        # To store fronts for that instance-operators-model
+        fronts_model_level = {}
+
+        # For each operators combination
+        for combination in get_combinations(all_crossover):
+
+            cross_type = combination[0]
+            cross_operator = combination[1]
+            mutation_operator = combination[2]
+            combination_name = combination[3]
+
+            for solver_name in solver_names:
+
+                # Get solver
+                solver = build_solver(solver_name, cross_type, cross_operator, mutation_operator)
+
+                # To store pareto fronts for that instance-operators-model-experiment
+                fronts_exp_level = {}
+
+                # Perform N experiments with this configuration
+                with_crossover = "Own" if cross_type == "operator_template" else "SBX"
+                with_mutation = "No_Mutation" if mutation_operator == "NullMutation" else "With_Mutation"
+
+                for i in tqdm(range(1, n_experiments+1), desc=f"{solver_name} {with_crossover} {with_mutation}"):
+                    
+                    # Set initial population for MO
+                    instance.set_initial_solutions(experiment=i)
+
+                    # Get seed
+                    seed = seeds[i-1]
+
+                    # Send the instance to the solver
+                    solver.load_instance(instance)
+
+                    # Start model
+                    solver.start_model(seed)
+
+                    # Solve
+                    results = solver.solve_instance()
+
+                    # Extract results
+                    _, pareto_front = results[:2]
+
+                    # Store results
+                    fronts_exp_level[f"Experiment {i:03d}"] = pareto_front
+
+                    # Update consolidated
+                    consolidated = consolidated.union([tuple(point) for point in pareto_front.tolist()])
+
+                    #* Note: Each iteration of this loop, returns a pareto_front
+
+                fronts_model_level[f"{solver_name}_{combination_name}_{with_mutation}"] = fronts_exp_level
+
+                del solver
+
+                #* At this point, we have N pareto fronts for that model
+                #* with those operators in that instance.
+            
+            #* Here we end with M (number of models) * N pareto fronts
+            #* for all models with those operators.
+
+        #* Now we have 3 * M * N pareto fronts for all models all comb of operators
+        #* For one instance.
+
+        #* We need to create a consolidated here, get its nadir.
+        #* Compute HVs for all comb of operators, for all models and all experiments.
+
+        #* Make a dataframe for that instance
+
+        # Get the best front
+        best_front = non_dominated_sorting_vectorized(consolidated)[0]
+
+        # Compute Nadir point
+        nadir_point = compute_nadir_point(set(best_front))
+
+        # Dataframe data
+        data = {}
+
+        for model_operators in fronts_model_level.keys():
+
+            column_data = []
+
+            for experiment in fronts_model_level[model_operators].keys():
+
+                front = fronts_model_level[model_operators][experiment]
+
+                hv = compute_hypervolume(nadir_point, front)
+
+                column_data.append(hv)
+
+            data[model_operators] = column_data
+
+        dataframe = pd.DataFrame(data)
+        dataframe.insert(0, "Experiment", range(1, n_experiments + 1))
+
+        # Save dataframe
+        new_path = os.path.join(params["RESULTS_PATH"], instance_name + ".csv")
+        dataframe.to_csv(new_path, index=False)
+
+        # Instance total time
+        instance_time = time.time() - instance_start
+        instance_minutes = round(instance_time / 60, 2)
+        instance_hours = round(instance_time / 3600, 2)
+        
+        print(f"\nInstance: {instance_name}, Minutes: {instance_minutes}, Hours: {instance_hours}\n")
+
+    # * Now, we have K dataframes, one for each instance.
+
+    program_total_time = time.time() - program_time
+    minutes = round(program_total_time /60 , 4)
+    hours = round(program_total_time / 3600, 4)
+
+    print(f"\nProgram Time - Minutes: {minutes}, Hours: {hours}\n")
+
+    return params["RESULTS_PATH"]
+
+
+if __name__ == "__main__":
+    
+    # First execute the experiments, and generate data from it
+    run_experiments()

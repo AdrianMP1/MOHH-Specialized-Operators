@@ -3,10 +3,10 @@ from generation.params import Params, set_params
 from generation.algorithm.hyperheuristic import HyperHeuristic
 from generation.utilities.instance_utils import instance_paths
 
-def execute_generation(mo_model: str) -> str:
+def execute_generation(mo_model: str, experiment_path: str) -> str:
 
     # First set the parameters of the experiment
-    set_params()
+    set_params(experiment_path, mo_model)
 
     # Load params
     params = Params()

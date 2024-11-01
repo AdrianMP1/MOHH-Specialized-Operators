@@ -17,7 +17,8 @@ class PopulationSaver():
         
         return cls._instance
 
-    def __init__(self, file_format: str="json") -> None:
+    def __init__(self, experiment_path: str | None = None,
+                current_model: str | None = None, file_format: str="json") -> None:
         if not hasattr(self, "initialized"):
 
             params = Params()
@@ -29,10 +30,10 @@ class PopulationSaver():
             self.existing_individuals = set()
 
             # Initialize folders for a new run
-            self._initialize_directories()
+            self._initialize_directories(experiment_path, current_model)
             self.initialized = True
 
-    def _initialize_directories(self):
+    def _initialize_directories(self, experiment_path: str, current_model: str):
         """
         Generates neccesary folders and files for saving statistics and parameters.
         """
@@ -53,19 +54,20 @@ class PopulationSaver():
 
         else:
             # Set file path to results folder.
-            params['FILE_PATH'] = path.join(getcwd(), "results")
+            #params['FILE_PATH'] = path.join(getcwd(), "results")
+            params['FILE_PATH'] = path.join(getcwd(), experiment_path)
 
         # Generate save folders
         if not path.isdir(params['FILE_PATH']):
             makedirs(params['FILE_PATH'], exist_ok=True)
 
         if not path.isdir(path.join(params['FILE_PATH'],
-                                    str(params['TIME_STAMP']))):
+                                    current_model + "_" + str(params['TIME_STAMP']))):
             makedirs(path.join(params['FILE_PATH'],
-                               str(params['TIME_STAMP'])), exist_ok=True)
+                               current_model + "_" + str(params['TIME_STAMP'])), exist_ok=True)
 
         params['FILE_PATH'] = path.join(params['FILE_PATH'],
-                                        str(params['TIME_STAMP']), "generation_results")
+                                        current_model + "_" + str(params['TIME_STAMP']), "generation_results")
 
         for name in ["individuals", "initial_solutions", "generations"]:
 
@@ -303,7 +305,19 @@ class MyLogger():
     def get_logger(self) -> logging.Logger:
         # Access the logger instance
         return self.logger
+    
+    def close_logger(self) -> None:
+        # Close file
+        handlers = self.logger.handlers[:]
+        for handler in handlers:
+            handler.close()
+            self.logger.removeHandler(handler)
 
     @classmethod
     def reset_instance(cls):
-        cls._instance = None
+        
+        if cls._instance is not None:
+            # Close handler
+            cls._instance.close_logger()
+            cls._instance = None
+            

@@ -17,39 +17,60 @@ def read_json(data_path: str) -> dict:
 
 if __name__ == "__main__":
 
+    # Experiments path
+    number = 1
+    experiment_path = os.path.join("results", f"Experiment_{number:03d}")
+
+    while os.path.exists(experiment_path):
+        number += 1
+        experiment_path = os.path.join("results", f"Experiment_{number:03d}")
+    os.makedirs(experiment_path, exist_ok=True)
+
     # MO_Models to try
-    models = ["NSGAII", "SMSEMOA"]
+    models = ["MOEAD", "NSGAII", "SMSEMOA"]
+
+    phenotypes = []
+
+    results_paths = []
 
     for mo_model in models:
 
         # First, run generation code
-        experiment_path, generations_path, individuals_path, elite_size = execute_generation(mo_model)
+        results_path, generations_path, individuals_path, elite_size = execute_generation(mo_model, experiment_path)
 
-        # Evaluate best, middle and worst individuals
-        if test_individuals:
+        # Get the last generation
+        last_generation_path = os.path.join(generations_path, os.listdir(generations_path)[-1], "population.json")
+        last_population = read_json(last_generation_path)
+        
+        # Indices for the selected operators
+        indices = [0, (elite_size - 1) // 2, elite_size - 1]
 
-            # Get the last generation
-            last_generation_path = os.path.join(generations_path, os.listdir(generations_path)[-1], "population.json")
-            last_population = read_json(last_generation_path)
+        # Get operators ids
+        operators = [last_population[index] for index in indices]
 
-            # Indices for the selected operators
-            indices = [0, (elite_size-1)//2, elite_size-1]
+        # Get operators paths
+        operator_paths = [os.path.join(individuals_path, operator, "general_info.json") for operator in operators]
 
-            # Get operators ids
-            operators = [last_population[index] for index in indices]
+        # Load jsons and extract phenotypes
+        for operator_path in operator_paths:
 
-            # Get operators paths
-            operators_paths = [os.path.join(individuals_path, operator, "general_info.json") for operator in operators]
+            individual_data = read_json(operator_path)
+            phenotype = individual_data["phenotype"]
+            phenotypes.append(phenotype)
+        
+        # Get experiment paths
+        results_path_components = results_path.split("\\")
+        results_path = "\\".join(results_path_components[:-1])
+        results_paths.append(results_path)
 
-            # Load jsons and extract phenotypes
-            phenotypes = []
-            for operator_path in operators_paths:
+    # Save the operators
+    groups = [phenotypes[i:i+3] for i in range(0, len(phenotypes), 3)]
 
-                individual_data = read_json(operator_path)
-                phenotype = individual_data["phenotype"]
-                phenotypes.append(phenotype)
-
-            # Run the evaluation
-            experiment_path_components = experiment_path.split("\\")
-            experiment_path = "\\".join(experiment_path_components[:-1])
-            execute_experiments(experiment_path, phenotypes)
+    for index, model in enumerate(models):
+        filename = os.path.join(experiment_path, f"{model}_operators.txt")
+        with open(filename, "w") as file:
+            for label, operator in zip(["Best", "Middle", "Worst"], groups[index]):
+                file.write(f"{label}: {operator}\n")
+            file.close()
+     
+    execute_experiments(experiment_path, results_paths, phenotypes)

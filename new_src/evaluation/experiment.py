@@ -17,26 +17,15 @@ from evaluation.problem.instance import Instance
 
 from evaluation.algorithms import MOEA_Decomposition, NSGAII, SMS_MOEA, IBEA
 
-n_experiments = 2
+n_experiments = 30
 solution_type = "Real"
 
 # Solvers
-solver_names = ["SMSEMOA", "NSGAII", "MOEAD"]
-
-# Best, middle, worst
-#my_operators = ["masked_cross(y,sin(sin(sin(x))))",
-#            "(sin(cos(cos((y - sin(masked_cross(y,cos(x))))))) + y)", 
-#            "(sin(cos(cos((y - sin(masked_cross(y,sin(one_point(cos(masked_cross(y,(convolution(one_point(x,sin(convolution(masked_cross(y,y),x))),sin(convolution((x - x),x))) - x))),x)))))))) + y)"]
-
-#all_crossover = [("operator_template", my_operators[0], "Best"),
-#                 ("operator_template", my_operators[1], "Middle"),
-#                 ("operator_template", my_operators[2], "Worst"),
-#                 ("crossover", "SBX_Cross", "Standar")]
+solver_names = ["MOEAD", "NSGAII", "SMSEMOA"]
 
 all_mutation = ["NullMutation", "PM_Mutation"]
 
-
-def make_experiment_paths(experiment_path: str):
+def make_experiment_paths(experiment_path: list[str]):
 
     # Load params
     params = Params()
@@ -44,10 +33,14 @@ def make_experiment_paths(experiment_path: str):
     folder_name = "evaluation_results"
 
     dir_path = os.path.join(experiment_path, folder_name)
-    #dir_path = os.path.join("results_evaluation", folder_name)
-    initial_solutions_path = os.path.join(dir_path, "initial_solutions")
 
-    os.makedirs(dir_path, exist_ok=True)
+    for solver in solver_names:
+
+        solver_path = os.path.join(dir_path, solver)
+
+        os.makedirs(solver_path, exist_ok=True)
+    
+    initial_solutions_path = os.path.join(dir_path, "initial_solutions")
     os.makedirs(initial_solutions_path, exist_ok=True)
 
     params["RESULTS_PATH"] = dir_path
@@ -73,9 +66,10 @@ def generate_incremental_seeds(seeds_number: int) -> list:
 
 def get_combinations(all_crossover):
 
-    combinations = [(op[0], op[1], mutation, op[2]) for op, mutation in product(all_crossover, all_mutation)]
+    # op -> [Crossover/Template, phenotype, Best/Middle/..., solver_used]
+    combinations = [(op[0], op[1], mutation, op[3], op[2]) for op, mutation in product(all_crossover, all_mutation)]
 
-    sorted_combinations = sorted(combinations, key = lambda x: (x[2], x[0], x[3], x[1]))
+    sorted_combinations = sorted(combinations, key = lambda x: (x[2], x[0], x[4], x[3], x[1]))
 
     return sorted_combinations
 
@@ -117,14 +111,22 @@ def build_solver(solver_name, cross_type, crossover, mutation):
     return solver
 
 
-def run_experiments(experiment_path, operators) -> str:
+def run_experiments(experiment_path, results_paths, operators) -> str:
 
     # Set operators
     # Best, middle, worst
-    all_crossover = [("operator_template", operators[0], "Best"),
-                 ("operator_template", operators[1], "Middle"),
-                 ("operator_template", operators[2], "Worst"),
-                 ("crossover", "SBX_Cross", "Standar")]
+
+    all_crossover = []
+
+    for i in range(0, len(operators), 3):
+
+        solver_name = solver_names[i // 3]
+
+        all_crossover.append(("operator_template", operators[i],   solver_name, "Best"))
+        all_crossover.append(("operator_template", operators[i+1], solver_name, "Middle"))
+        all_crossover.append(("operator_template", operators[i+2], solver_name, "Worst"))
+
+    all_crossover.append(("crossover", "SBX_Cross", "None", "Standard"))
 
     # Set the parameters
     set_params()
@@ -172,6 +174,7 @@ def run_experiments(experiment_path, operators) -> str:
             cross_operator = combination[1]
             mutation_operator = combination[2]
             combination_name = combination[3]
+            solver_used = combination[4]
 
             for solver_name in solver_names:
 
@@ -183,9 +186,9 @@ def run_experiments(experiment_path, operators) -> str:
 
                 # Perform N experiments with this configuration
                 with_crossover = "Own" if cross_type == "operator_template" else "SBX"
-                with_mutation = "No_Mutation" if mutation_operator == "NullMutation" else "With_Mutation"
+                with_mutation = "NM" if mutation_operator == "NullMutation" else "WM"
 
-                for i in tqdm(range(1, n_experiments+1), desc=f"{solver_name} {with_crossover} {with_mutation}"):
+                for i in tqdm(range(1, n_experiments+1), desc=f"{solver_used} {combination_name} {with_mutation} {solver_name}"):
                     
                     # Set initial population for MO
                     instance.set_initial_solutions(experiment=i)
@@ -213,7 +216,7 @@ def run_experiments(experiment_path, operators) -> str:
 
                     #* Note: Each iteration of this loop, returns a pareto_front
 
-                fronts_model_level[f"{solver_name}_{combination_name}_{with_mutation}"] = fronts_exp_level
+                fronts_model_level[f"{solver_name}_{combination_name}_{with_mutation}_{solver_used}"] = fronts_exp_level
 
                 del solver
 
@@ -233,6 +236,12 @@ def run_experiments(experiment_path, operators) -> str:
 
         # Get the best front
         best_front = non_dominated_sorting_vectorized(consolidated)[0]
+
+        # Ensure nadir is not computed from a best_front that dominates every other point.
+        while len(best_front) <= 2:
+            for point in best_front:
+                consolidated.remove(point)
+            best_front = non_dominated_sorting_vectorized(consolidated)[0]
 
         # Compute Nadir point
         nadir_point = compute_nadir_point(set(best_front))
@@ -254,12 +263,27 @@ def run_experiments(experiment_path, operators) -> str:
 
             data[model_operators] = column_data
 
+        # Make dataframe
         dataframe = pd.DataFrame(data)
         dataframe.insert(0, "Experiment", range(1, n_experiments + 1))
 
+        # Get columns
+        columns = dataframe.columns
+        standard_columns = [col for col in columns if col.endswith("None")]
+
         # Save dataframe
-        new_path = os.path.join(params["RESULTS_PATH"], instance_name + ".csv")
-        dataframe.to_csv(new_path, index=False)
+        for solver_name in solver_names:
+
+            new_path = os.path.join(params["RESULTS_PATH"], solver_name, instance_name + ".csv")
+            subset_columns = [col for col in columns if col.endswith(solver_name)]
+            subset_columns.extend(standard_columns)
+            subset_columns = ["Experiment"] + subset_columns
+
+            subset_df = dataframe[subset_columns]
+            subset_df.to_csv(new_path, index=False)
+
+        #new_path = os.path.join(params["RESULTS_PATH"], instance_name + ".csv")
+        #dataframe.to_csv(new_path, index=False)
 
         # Instance total time
         instance_time = time.time() - instance_start

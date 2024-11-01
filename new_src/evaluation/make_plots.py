@@ -4,6 +4,7 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 
+solver_names = ["MOEAD", "NSGAII", "SMSEMOA"]
 
 def sort_columns_by_prefix(df):
 
@@ -12,7 +13,19 @@ def sort_columns_by_prefix(df):
     first_column = columns[0]
     other_columns = columns[1:]
 
-    sorted_columns = sorted(other_columns, key=lambda col: (col.split('_')[0], col.split('_')[1]))
+    # Custom order
+    custom_order = ["Standard", "Best", "Middle", "Worst"]
+
+    # Map for custom order
+    type_order_index = {key: i for i, key in enumerate(custom_order)}
+
+    # Sort by Solver, then by type, then by mutation
+    sorted_columns = sorted(other_columns, key=lambda x: (
+        x.split("_")[0], # Solver
+        type_order_index.get(x.split("_")[1], float("inf")), # Type
+        x.split("_")[2] # Mutation
+    ))
+
     sorted_columns = [first_column] + sorted_columns
 
     sorted_df = df[sorted_columns]
@@ -92,6 +105,22 @@ def make_figures(folder_path: str):
 
     #folder_path = "results_evaluation/Lenovo_Legion_2024_10_21_0253_925549"
 
+    for solver in solver_names:
+
+        solver_path = os.path.join(folder_path, solver)
+
+        instance_files = os.listdir(solver_path)
+        
+        for instance in instance_files:
+
+            df = pd.read_csv(os.path.join(solver_path, instance))
+
+            df = sort_columns_by_prefix(df)
+
+            instance_name = instance.removesuffix(".csv")
+            plot_boxplots_grouped(df, instance_name, solver_path, save=True)
+
+    """
     instance_files = os.listdir(folder_path)
     instance_files = [instance for instance in instance_files if instance != "initial_solutions"]
     
@@ -109,7 +138,7 @@ def make_figures(folder_path: str):
 
         instance_name = instance.removesuffix(".csv")
         plot_boxplots_grouped(df, instance_name, folder_path, save=True)
-
+    """
 
 if __name__ == "__main__":
     folder_path = "results_evaluation/Lenovo_Legion_2024_10_21_0253_925549"

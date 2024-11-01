@@ -12,9 +12,9 @@ machine_name = hostname[0]
 hh_params = {
     # ------------
     # EVOLUTIONARY PARAMETERS
-    'POPULATION_SIZE': 10,
-    'GENERATIONS': 3,
-    'ELITE_SIZE': 5,
+    'POPULATION_SIZE': 50,
+    'GENERATIONS': 30,
+    'ELITE_SIZE': 15,
 
     # ------------
     # INDIVIDUALS PARAMETERS
@@ -80,7 +80,7 @@ mo_params = {
     # ------------
     # EVOLUTIONARY PARAMETERS
     'MO_POPULATION_SIZE': 105,
-    'MO_GENERATIONS': 10,
+    'MO_GENERATIONS': 100,
 
     # ------------
     # CROSSOVER
@@ -190,7 +190,7 @@ def load_params():
     pass
 
 
-def set_params():
+def set_params(experiment_path: str, current_model: str):
 
     # Initialize singleton object with params
     params = Params()
@@ -221,7 +221,7 @@ def set_params():
 
     # Generate save folders
     if params["SAVE"]:
-        save = PopulationSaver()
+        save = PopulationSaver(experiment_path, current_model)
         logger = MyLogger().get_logger()
         logger.info(f"Start")
 

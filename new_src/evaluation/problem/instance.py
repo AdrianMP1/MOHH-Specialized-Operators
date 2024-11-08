@@ -51,44 +51,100 @@ class Instance():
         Instance.num_instances_created += 1
         self.instance_id :str = f"Instance_{Instance.num_instances_created:03d}"
 
-    def create_initial_solution(self, experiment: int) -> None:
+    def save_initial_solutions(self):
+
+        # Get parameters
+        params = Params()
+
+        # Save real vectors and permutations
+        file_path = params["FILE_PATH_INITIAL_SOLUTIONS"]
+        
+        # Make directories for real and permutations
+        instance_level = os.path.join(file_path, "real", self.file_name)
+        instance_level_permutations = os.path.join(file_path, "permutation", self.file_name)
+        os.makedirs(instance_level, exist_ok=True)
+        os.makedirs(instance_level_permutations, exist_ok=True)
+
+        for experiment in self.initial_solutions_experiments.keys():
+
+            initial_solutions = self.initial_solutions_experiments[experiment]
+            experiment = experiment.lower()
+
+            with open(os.path.join(instance_level, experiment + ".txt"), "w") as f:
+                
+                for i in range(self.population_size):
+                    # Extract an individual and format it to string
+                    sol = initial_solutions[i].tolist()
+                
+                    sol = ", ".join(["{:.04f}".format(w) for w in sol])
+                    
+                    sol = "[" + sol + "]\n"
+
+                    # Write on file
+                    f.write(sol)
+
+                # Close the file
+                f.close()
+
+        for experiment in self.initial_solutions_permutations_experiments.keys():
+
+            initial_solutions = self.initial_solutions_permutations_experiments[experiment]
+            experiment = experiment.lower()
+
+            with open(os.path.join(instance_level_permutations, experiment + ".txt"), "w") as f:
+                
+                for i in range(self.population_size):
+                    # Extract an individual and format it to string
+                    sol = initial_solutions[i]
+                
+                    sol = ", ".join(["{:03d}".format(w) for w in sol])
+                    
+                    sol = "[" + sol + "]\n"
+
+                    # Write on file
+                    f.write(sol)
+
+                # Close the file
+                f.close()
+
+    def create_initial_solution(self) -> None:
         """
         Generates an initial solution.
         It must be executed only one time per instance.
         """
 
-        params = Params()
-
         # Generate them.
-        generator = MOSampling(kind=self.solution_type)
+        generator = MOSampling(kind="real")
         initial_solutions = generator.generate(self.n_variables,
-                                                self.population_size)
+                                               self.population_size)
         
-        # Save it to disk.
-        file_path = params["FILE_PATH_INITIAL_SOLUTIONS"]
-
-        instance_level = file_path + "/" + self.file_name
-        os.makedirs(instance_level, exist_ok=True)
-
-        with open(instance_level + "/" + f"experiment_{experiment:03d}" + ".txt", "w") as f:
-            for i in range(self.population_size):
-                # Extract an individual and format it to string
-                sol = initial_solutions[i].tolist()
-                
-                if self.solution_type == "real":
-                    sol = ", ".join(["{:.04f}".format(w) for w in sol])
-                else:
-                    sol = ", ".join(["{:03d}".format(w) for w in sol])
-                    
-                sol = "[" + sol + "]\n"
-
-                # Write on file
-                f.write(sol)
-
-            # Close the file
-            f.close()
+        # Convert real solutions into permutation
+        initial_solutions_permutation = [self._decode_random_keys(sol) for sol in initial_solutions]
         
-        return initial_solutions
+        return initial_solutions, initial_solutions_permutation
+    
+    def load_initial_solution(self, file_path: str, permutation: bool=False):
+        
+        data = []
+        with open(file_path, "r") as file:
+            
+            if not(permutation):
+
+                # Parse each line as a list of floats
+                for line in file:
+                    data.append(eval(line))
+            
+            else:
+                # Process leading zeros
+                for line in file:
+                    # Remove \n and brackets []
+                    line = line.strip()[1:-1]
+                    # Convert string into int
+                    p = [int(value, 10) for value in line.split(",")]
+                    # Append
+                    data.append(p)
+
+        return np.array(data)
 
     def create_solutions(self, n_experiments: int) -> None:
         """
@@ -96,17 +152,53 @@ class Instance():
         """
 
         initial_solutions = {}
-        
+        initial_solutions_permutations = {}
+
         for experiment in range(1, n_experiments+1):
 
-            solutions = self.create_initial_solution(experiment)
+            solutions, permutations = self.create_initial_solution()
             
             initial_solutions[f"Experiment_{experiment:03d}"] = solutions
+            initial_solutions_permutations[f"Experiment_{experiment:03d}"] = permutations
+
+        self.initial_solutions_experiments = initial_solutions
+        self.initial_solutions_permutations_experiments = initial_solutions_permutations
+
+    def load_solutions(self, file_path: str, n_experiments: int) -> None:
+        """
+        Load initial solutions
+        """
+
+        initial_solutions = {}
+        initial_solutions_permutations = {}
+
+        for experiment in range(1, n_experiments+1):
+
+            real_sol_path = os.path.join(file_path, "real", self.file_name, f"experiment_{experiment:03d}.txt")
+            perm_sol_path = os.path.join(file_path, "permutation", self.file_name, f"experiment_{experiment:03d}.txt")
+            
+            try:
+                solutions = self.load_initial_solution(real_sol_path)
+                initial_solutions[f"Experiment_{experiment:03d}"] = solutions
+
+            except:
+                pass
+
+            try:
+                permutations = self.load_initial_solution(perm_sol_path, permutation=True)
+                
+            except:
+                # Convert real solutions into permutation
+                permutations = [self._decode_random_keys(sol) for sol in solutions]
+            
+            initial_solutions_permutations[f"Experiment_{experiment:03d}"] = permutations
         
         self.initial_solutions_experiments = initial_solutions
+        self.initial_solutions_permutations_experiments = initial_solutions_permutations
+
 
     def load_problem(self, problem_type: str, file_name: str, 
-                     n_experiments:int) -> None:
+                     n_experiments:int, init_solutions_path: str = "") -> None:
         """
         Loads an instance file.
 
@@ -123,8 +215,16 @@ class Instance():
             ## Extract parameters
             self._extract_qap_parameters()
 
-            ## Create initial solutions for consistency.
-            self.create_solutions(n_experiments)
+            if init_solutions_path:
+                ## Load initial solutions
+                self.load_solutions(init_solutions_path, n_experiments)
+
+            else:
+                ## Create initial solutions for consistency.
+                self.create_solutions(n_experiments)
+            
+            ## Write initial solutions
+            self.save_initial_solutions()
 
             ## Create an initial nadir point
             self.previous_nadir_point = [0] * self.k_objectives
@@ -143,13 +243,19 @@ class Instance():
             # Loads a tsp instance
             pass
 
-    def set_initial_solutions(self, experiment: int):
+    def set_initial_solutions(self, experiment: int, kind: str="real"):
         """
         Set initial solutions for its respective experiment
         """
 
-        solutions = self.initial_solutions_experiments[f"Experiment_{experiment:03d}"]
-        
+        if kind == "real":
+            solutions = self.initial_solutions_experiments[f"Experiment_{experiment:03d}"]
+            
+        else:
+            solutions = self.initial_solutions_permutations_experiments[f"Experiment_{experiment:03d}"]
+
+        self.problem.kind_solutions = kind
+
         self.initial_solutions = solutions
 
     def _extract_qap_parameters(self) -> None:
@@ -174,8 +280,25 @@ class Instance():
         # Type of distribution
         self.kind: str = parameters[2][1:]
 
+    def _decode_random_keys(self, solution:np.ndarray) -> list:
+        """
+        Auxiliar function to decode random_keys into natural numbers.
 
-class QuadraticAssignment(ElementwiseProblem):
+        @param solution: Numpy array with float numbers.
+
+        :return: List with int numbers.
+        """
+        # Add index labels
+        augmented_keys = list(zip([i for i in range(len(solution))], solution))
+
+        # Sort the keys by the random numbers
+        augmented_keys.sort(key = lambda x: x[1])
+
+        # Unzip it and extract the decoded solution
+        return list(zip(*augmented_keys))[0]
+
+
+class QuadraticAssignment(Problem):
     
     def __init__(self, n_var: int, k_obj: int, file_name: str,
                  kind_solutions: str, **kwargs):
@@ -271,10 +394,11 @@ class QuadraticAssignment(ElementwiseProblem):
         @param x: Population.
         @param out: Dictionary to update.
         """
-        x = x.reshape(1, -1)
+
+        #x = x.reshape(1, -1)
 
         # Get population size
-        population_size = x.shape[0]
+        population_size, n_var = x.shape
 
         # Allocate memory for fitness values.
         values = np.zeros((population_size, self.k_obj))
@@ -284,19 +408,15 @@ class QuadraticAssignment(ElementwiseProblem):
             # Convert random-keys into int values
             solutions = np.array([self.decode_random_keys(x[i,:].copy()) for i in range(population_size)])
         else:
-            # 
+            # Let the solution the same
             solutions = x
+
+        for k in range(population_size):
+            for m in range(self.k_obj):
+                weights = self.weights[m, solutions[k]][:, solutions[k]]
+                values[k,m] = np.einsum('ij, ij->', self.positions, weights)
         
-        for i in range(population_size):
-            for current_objective in range(self.k_obj):
-                values[i, current_objective] = self.cost_of_solution(current_objective, solutions[i,:])
-
-        #for i in range(population):
-        #    for current_objective in range(self.k_obj):
-
-        #        values[i,current_objective] = self.cost_of_solution(current_objective, self.decode_random_keys(x[i,:]))
-
-        out["F"] = values.squeeze()
+        out["F"] = values
     
     def cost_of_solution(self, function_indx:int, solution:np.ndarray):
         """

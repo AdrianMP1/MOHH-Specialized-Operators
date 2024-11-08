@@ -17,8 +17,11 @@ from evaluation.problem.instance import Instance
 
 from evaluation.algorithms import MOEA_Decomposition, NSGAII, SMS_MOEA, IBEA
 
-n_experiments = 30
+n_experiments = 2
 solution_type = "Real"
+
+# Load an already initial population?
+initial_population_path = ""
 
 # Solvers
 solver_names = ["MOEAD", "NSGAII", "SMSEMOA"]
@@ -60,17 +63,60 @@ def generate_incremental_seeds(seeds_number: int) -> list:
         increment = random.randint(1, 1000)
         new_seed = seeds[-1] + increment
         seeds.append(new_seed)
+
+    if initial_population_path:
+        try:
+            old_seeds = []
+
+            with open(os.path.join(initial_population_path, "seeds.txt"), "r") as f:
+                for line in f:
+                    old_seeds.append(int(line))
+            
+            seeds = old_seeds
+        except:
+            pass
     
     return seeds
+
+def save_seeds(seeds: list, folder_path: str):
+
+    file_path = os.path.join(folder_path, "seeds.txt")
+
+    with open(file_path, "w") as f:
+        
+        for seed in seeds:
+            f.write(seed)
+        f.close()
 
 
 def get_combinations(all_crossover):
 
+    # Separate to deal with real and permutation operators
+    regular_crossover = all_crossover[:-1]
+    special_crossover = all_crossover[-1]
+
+    # Generate combinations for regular elements using real value mutations
     # op -> [Crossover/Template, phenotype, Best/Middle/..., solver_used]
-    combinations = [(op[0], op[1], mutation, op[3], op[2]) for op, mutation in product(all_crossover, all_mutation)]
+    regular_combinations = [
+        (op[0], op[1], mutation, op[3], op[2])
+        for op, mutation in product(regular_crossover, all_mutation)
+    ]
 
-    sorted_combinations = sorted(combinations, key = lambda x: (x[2], x[0], x[4], x[3], x[1]))
+    # Generate combinations for the permutation operators with permutation mutations.
+    special_combinations = [
+        (special_crossover[0], special_crossover[1], "NullMutation", special_crossover[3], special_crossover[2]),
+        (special_crossover[0], special_crossover[1], "Swap_Mutation", special_crossover[3], special_crossover[2])
+    ]
 
+    # Merge combinations
+    all_combinations = regular_combinations + special_combinations
+
+    # Sort combined list
+    sorted_combinations = sorted(all_combinations, key = lambda x: (x[2], x[0], x[4], x[3], x[1]))
+
+    #combinations = [(op[0], op[1], mutation, op[3], op[2]) for op, mutation in product(all_crossover, all_mutation)]
+
+    #sorted_combinations = sorted(combinations, key = lambda x: (x[2], x[0], x[4], x[3], x[1]))
     return sorted_combinations
 
 
@@ -127,6 +173,7 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
         all_crossover.append(("operator_template", operators[i+2], solver_name, "Worst"))
 
     all_crossover.append(("crossover", "SBX_Cross", "None", "Standard"))
+    all_crossover.append(("crossover", "PMX_Cross", "None", "Standard"))
 
     # Set the parameters
     set_params()
@@ -156,10 +203,11 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
         instance_name = instance_name.removesuffix(".txt")
 
         # Load problem & Create initial population for MO for all experiments
-        instance.load_problem(params["PROBLEM_NAME"], instance_path, n_experiments)
+        instance.load_problem(params["PROBLEM_NAME"], instance_path, n_experiments, initial_population_path)
 
         # Make seeds
         seeds = generate_incremental_seeds(n_experiments)
+        save_seeds(seeds, params["FILE_PATH_INITIAL_SOLUTIONS"])
 
         # Make a consolidated for instance
         consolidated = set()
@@ -176,6 +224,8 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
             combination_name = combination[3]
             solver_used = combination[4]
 
+            kind = "real" if cross_operator != "PMX_Cross" else "permutation"
+
             for solver_name in solver_names:
 
                 # Get solver
@@ -191,7 +241,7 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
                 for i in tqdm(range(1, n_experiments+1), desc=f"{solver_used} {combination_name} {with_mutation} {solver_name}"):
                     
                     # Set initial population for MO
-                    instance.set_initial_solutions(experiment=i)
+                    instance.set_initial_solutions(experiment=i, kind=kind)
 
                     # Get seed
                     seed = seeds[i-1]
@@ -216,7 +266,7 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
 
                     #* Note: Each iteration of this loop, returns a pareto_front
 
-                fronts_model_level[f"{solver_name}_{combination_name}_{with_mutation}_{solver_used}"] = fronts_exp_level
+                fronts_model_level[f"{solver_name}_{combination_name}_{with_mutation}_{cross_type}_{solver_used}"] = fronts_exp_level
 
                 del solver
 
@@ -269,13 +319,19 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
 
         # Get columns
         columns = dataframe.columns
+
+        # Get columns that are not generated operators
         standard_columns = [col for col in columns if col.endswith("None")]
 
         # Save dataframe
         for solver_name in solver_names:
 
             new_path = os.path.join(params["RESULTS_PATH"], solver_name, instance_name + ".csv")
+
+            # Get the columns for that specific solver
             subset_columns = [col for col in columns if col.endswith(solver_name)]
+
+            # Add the columns for the standard operators
             subset_columns.extend(standard_columns)
             subset_columns = ["Experiment"] + subset_columns
 

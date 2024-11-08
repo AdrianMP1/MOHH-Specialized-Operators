@@ -2,6 +2,7 @@
 import os
 import time
 import random
+import numpy as np
 import pandas as pd
 
 from tqdm import tqdm
@@ -50,7 +51,7 @@ def make_experiment_paths(experiment_path: list[str]):
     params["FILE_PATH_INITIAL_SOLUTIONS"] = initial_solutions_path
 
 
-def generate_incremental_seeds(seeds_number: int) -> list:
+def generate_incremental_seeds(seeds_number: int, instance_name: str) -> list:
 
     # Get the initial time-based seed
     start = datetime.now()
@@ -68,7 +69,7 @@ def generate_incremental_seeds(seeds_number: int) -> list:
         try:
             old_seeds = []
 
-            with open(os.path.join(initial_population_path, "seeds.txt"), "r") as f:
+            with open(os.path.join(initial_population_path, "real", instance_name, "seeds.txt"), "r") as f:
                 for line in f:
                     old_seeds.append(int(line))
             
@@ -78,14 +79,21 @@ def generate_incremental_seeds(seeds_number: int) -> list:
     
     return seeds
 
-def save_seeds(seeds: list, folder_path: str):
+def save_seeds(seeds: list, folder_path: str, instance_name: str):
 
-    file_path = os.path.join(folder_path, "seeds.txt")
-
-    with open(file_path, "w") as f:
+    real_path = os.path.join(folder_path, "real", instance_name, "seeds.txt")
+    permutation_path = os.path.join(folder_path, "permutation", instance_name, "seeds.txt")
+    
+    with open(real_path, "w") as f:
         
         for seed in seeds:
-            f.write(seed)
+            f.write(str(seed) + "\n")
+        f.close()
+
+    with open(permutation_path, "w") as f:
+        
+        for seed in seeds:
+            f.write(str(seed) + "\n")
         f.close()
 
 
@@ -206,8 +214,8 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
         instance.load_problem(params["PROBLEM_NAME"], instance_path, n_experiments, initial_population_path)
 
         # Make seeds
-        seeds = generate_incremental_seeds(n_experiments)
-        save_seeds(seeds, params["FILE_PATH_INITIAL_SOLUTIONS"])
+        seeds = generate_incremental_seeds(n_experiments, instance_name)
+        save_seeds(seeds, params["FILE_PATH_INITIAL_SOLUTIONS"], instance_name)
 
         # Make a consolidated for instance
         consolidated = set()
@@ -245,6 +253,8 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
 
                     # Get seed
                     seed = seeds[i-1]
+                    random.seed(seed)
+                    np.random.seed(seed)
 
                     # Send the instance to the solver
                     solver.load_instance(instance)
@@ -266,7 +276,12 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
 
                     #* Note: Each iteration of this loop, returns a pareto_front
 
-                fronts_model_level[f"{solver_name}_{combination_name}_{with_mutation}_{cross_type}_{solver_used}"] = fronts_exp_level
+                if combination_name == "Standard" and cross_operator == "SBX_Cross":
+                    combination_name = "SBX"
+                elif combination_name == "Standard" and cross_operator == "PMX_Cross":
+                    combination_name = "PMX"
+
+                fronts_model_level[f"{solver_name}_{combination_name}_{with_mutation}_{solver_used}"] = fronts_exp_level
 
                 del solver
 

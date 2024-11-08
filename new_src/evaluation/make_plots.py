@@ -14,7 +14,7 @@ def sort_columns_by_prefix(df):
     other_columns = columns[1:]
 
     # Custom order
-    custom_order = ["Standard", "Best", "Middle", "Worst"]
+    custom_order = ["SBX", "PMX", "Best", "Middle", "Worst"]
 
     # Map for custom order
     type_order_index = {key: i for i, key in enumerate(custom_order)}
@@ -37,7 +37,7 @@ def create_repeated_color_code(n):
 
     # Generate n random colors
     base_colors = np.random.choice(['b', 'g', 'r', 'c', 'm', 'y', 'k'], size=n, replace=False)
-    base_colors = ["grey", "g", "orange", "r"]
+    base_colors = ["grey", "cadetblue", "limegreen", "orange", "red"]
     #repeated_colors = [color for color in base_colors for _ in range(2)]
     repeated_colors = base_colors * n
 
@@ -74,9 +74,10 @@ def plot_boxplots_grouped(df, instance_name, folder_path,
     for prefix, cols in groups.items():
 
         # Get the colors
-        colors = colors + color_code
+        #colors = colors + color_code
 
-        bp = df[cols].boxplot(positions=range(current_pos, current_pos + len(cols)), widths=0.6, patch_artist=True)
+        bp = df[cols].boxplot(positions=range(current_pos, current_pos + len(cols)), widths=0.6, patch_artist=True,
+                              medianprops=dict(color="k", linewidth=2))
         
         #for patch, color in zip(bp.patches, colors):
         #    patch.set_facecolor(color)
@@ -87,7 +88,7 @@ def plot_boxplots_grouped(df, instance_name, folder_path,
         cols = [" ".join(col.split("_")[:-1]) for col in cols]
         tick_labels.extend(cols)
     
-    for patch, color in zip(bp.patches, colors):
+    for patch, color in zip(bp.patches, color_code):
         patch.set_facecolor(color)
 
     plt.xticks(positions, tick_labels, rotation=90, ha="right")

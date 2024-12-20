@@ -14,7 +14,8 @@ def read_json(data_path: str) -> dict:
         f.close()
 
     return data
-
+# TODO: Alternate_segments is not used.
+# TODO: fill_first_occurring has a bug. j sometimes is out of bounds.
 if __name__ == "__main__":
 
     # Experiments path

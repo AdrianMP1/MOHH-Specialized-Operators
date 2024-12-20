@@ -119,6 +119,18 @@ class Population():
         
         return phenotypes
     
+    def get_genome_usage(self) -> list:
+        """
+        Returns the allels needed to map the phenotype
+        from the current population.
+        """
+        usage = []
+
+        for individual in self.individuals:
+            usage.append(individual.used_codons)
+        
+        return usage
+    
 
 class Individual():
 

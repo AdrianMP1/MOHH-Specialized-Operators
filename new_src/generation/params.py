@@ -12,9 +12,9 @@ machine_name = hostname[0]
 hh_params = {
     # ------------
     # EVOLUTIONARY PARAMETERS
-    'POPULATION_SIZE': 50,
-    'GENERATIONS': 30,
-    'ELITE_SIZE': 15,
+    'POPULATION_SIZE': 15,
+    'GENERATIONS': 10,
+    'ELITE_SIZE': 5,
 
     # ------------
     # INDIVIDUALS PARAMETERS
@@ -24,8 +24,8 @@ hh_params = {
 
     'MAX_TREE_NODES': None,
     
-    'CODON_SIZE': 1000,
-    'INIT_GENOME_LENGTH': 200,
+    'CODON_SIZE': 255,
+    'INIT_GENOME_LENGTH': 100,
     'MAX_GENOME_LENGTH': None,
     'MAX_WRAPS': 0,
 
@@ -48,7 +48,7 @@ hh_params = {
     # Set crossover probability
     'CROSSOVER_PROBABILITY': 1.0,
     # Operator parameters
-    'CROSSOVER_K_POINTS': 1,
+    'CROSSOVER_K_POINTS': 2,
     'CROSSOVER_PARENTS': 2,
 
     # ------------
@@ -56,7 +56,7 @@ hh_params = {
     # Operator
     'MUTATION': 'BitFlipMutation',
     # Set mutation probability
-    'MUTATION_PROBABILITY': 0.1,
+    'MUTATION_PROBABILITY': 0.01,
     # Operator parameters
 
     # ------------
@@ -80,7 +80,7 @@ mo_params = {
     # ------------
     # EVOLUTIONARY PARAMETERS
     'MO_POPULATION_SIZE': 105,
-    'MO_GENERATIONS': 100,
+    'MO_GENERATIONS': 300,
 
     # ------------
     # CROSSOVER
@@ -103,7 +103,7 @@ problem_params = {
     # ------------
     # Problem class
     'PROBLEM_NAME': "QAP",
-    'SOLUTION_TYPE': "Real",
+    'SOLUTION_TYPE': "Natural",
     # Define if maximize or minimize.
     # True for maximize, False for minimize
     'OPTIMIZATION_KIND': False,
@@ -118,7 +118,7 @@ problem_params = {
 grammar_params = {
     # ------------
     # GRAMMAR
-    'GRAMMAR_FILE': "original.bnf",
+    'GRAMMAR_FILE': "naturals.bnf",
 
     # Set the number of depths permutations are calculated for
     # (starting from the minimum path of the grammar).

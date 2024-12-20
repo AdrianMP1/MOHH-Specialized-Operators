@@ -1,4 +1,5 @@
 
+import os
 import numpy as np
 
 from generation.params import Params
@@ -32,7 +33,8 @@ class Instance():
 
         # Initial population
         self.population_size :int = population_size
-        self.initial_solutions: np.ndarray = []
+        self.initial_solutions: np.ndarray = None
+        #self.initial_solutions_experiments: dict = {}
 
         # Each instance has a current non-dominated front
         self.fronts: list = []
@@ -44,41 +46,110 @@ class Instance():
         Instance.num_instances_created += 1
         self.instance_id :str = f"Instance_{Instance.num_instances_created:03d}"
 
+    def save_initial_solutions(self):
+
+        """
+        Save in disk the initial solutions
+        """
+
+        # Get parameters
+        params = Params()
+
+        # Save real vectors and permutations
+        file_path = params["FILE_PATH_INITIAL_SOLUTIONS"]
+
+        # Make directories for real and permutations
+        if self.solution_type != "real":
+            instance_level = os.path.join(file_path, "permutation")
+        else:
+            instance_level = os.path.join(file_path, "real")
+        
+        os.makedirs(instance_level, exist_ok=True)
+
+        save_path = os.path.join(instance_level, self.file_name + ".txt")
+        
+        # Save the initial solution
+        with open(save_path, "w") as f:
+
+            for i in range(self.population_size):
+                # Extract an individual and format it to string
+                sol = self.initial_solutions[i].tolist()
+
+                if self.solution_type == "real":
+                    sol = ", ".join(["{:.04f}".format(w) for w in sol])
+                else:
+                    sol = ", ".join(["{:03d}".format(w) for w in sol])
+
+                sol = "[" + sol + "]\n"
+
+                # Write on file
+                f.write(sol)
+            # Close file
+            f.close()
+
     def create_initial_solution(self) -> None:
         """
         Generates an initial solution.
         It must be executed only one time per instance.
         """
 
-        params = Params()
-
         # Generate them.
         generator = MOSampling(kind=self.solution_type)
-        self.initial_solutions = generator.generate(self.n_variables,
+        initial_solutions = generator.generate(self.n_variables,
                                                 self.population_size)
         
-        # Save it to disk.
-        file_path = params["FILE_PATH_INITIAL_SOLUTIONS"]
+        # Convert real solutions into permutation
+        #initial_solutions_permutation = [self._decode_random_keys(sol) for sol in initial_solutions]
 
-        with open(file_path + "/" + self.file_name + ".txt", "w") as f:
-            for i in range(self.population_size):
-                # Extract an individual and format it to string
-                sol = self.initial_solutions[i].tolist()
-                
-                if self.solution_type == "real":
-                    sol = ", ".join(["{:.04f}".format(w) for w in sol])
-                else:
-                    sol = ", ".join(["{:03d}".format(w) for w in sol])
-                    
-                sol = "[" + sol + "]\n"
+        self.initial_solutions = initial_solutions
 
-                # Write on file
-                f.write(sol)
+    
+    def load_initial_solution(self, file_path: str, permutation: bool = False):
 
-            # Close the file
-            f.close()
+        data = []
+        with open(file_path, "r") as file:
 
-    def load_problem(self, problem_type: str, file_name: str) -> None:
+            if not(permutation):
+
+                # Parse each line as a list of floats
+                for line in file:
+                    data.append(eval(line))
+            
+            else:
+                # Process leading zeros
+                for line in file:
+                    # Remove \n and brackets []
+                    line = line.strip()[1:-1]
+                    # Convert string into int
+                    p = [int(value, 10) for value in line.split(",")]
+                    # Append
+                    data.append(p)
+        
+        return np.array(data)
+    
+
+    def load_solutions(self, file_path: str) -> None:
+        """
+        Load initial solutions
+        """
+
+        if self.solution_type == "real":
+            sol_path = os.path.join(file_path, "real", self.file_name + ".txt")
+            permutation = False
+        else:
+            sol_path = os.path.join(file_path, "permutation", self.file_name + ".txt")
+            permutation = True
+
+        try:
+            solutions = self.load_initial_solution(sol_path, permutation)
+            self.initial_solutions = solutions
+        except Exception as e:
+            print(e)
+            raise(ValueError)
+
+
+    def load_problem(self, problem_type: str, file_name: str,
+                     init_solutions_path: str = "") -> None:
         """
         Loads an instance file.
 
@@ -95,8 +166,16 @@ class Instance():
             ## Extract parameters
             self._extract_qap_parameters()
 
-            ## Create initial solutions for consistency.
-            self.create_initial_solution()
+            if init_solutions_path:
+                ## Load initial solutions
+                self.load_solutions(init_solutions_path)
+
+            else:
+                ## Create initial solutions for consistency.
+                self.create_initial_solution()
+
+            ## Write initial solutions
+            self.save_initial_solutions() 
 
             ## Create an initial nadir point
             self.previous_nadir_point = [0] * self.k_objectives
@@ -130,6 +209,25 @@ class Instance():
 
         # Type of distribution
         self.kind: str = parameters[2][1:]
+
+
+    def _decode_random_keys(self, solution: np.ndarray) -> list:
+        """
+        Auxiliar function to decode random_keys into natural numbers.
+
+        @param solution: Numpy array with float numbers.
+
+        :return: List with int numbers.
+        """
+        # Add index labels
+        augmented_keys = list(zip([i for i in range(len(solution))], solution))
+
+        # Sort the keys by the random numbers
+        augmented_keys.sort(key = lambda x: x[1])
+
+        # Unzip it and extract the decoded solution
+        return list(zip(*augmented_keys))[0]
+
 
 class QuadraticAssignment(Problem):
 
@@ -229,7 +327,7 @@ class QuadraticAssignment(Problem):
         @param out: Dictionary to update.
         """
         # Get population size
-        population_size = len(x[:,0])
+        population_size, n_var = x.shape
 
         # Allocate memory for fitness values.
         values = np.zeros((population_size, self.k_obj))
@@ -241,10 +339,15 @@ class QuadraticAssignment(Problem):
         else:
             # 
             solutions = x
+
+        for k in range(population_size):
+            for m in range(self.k_obj):
+                weights = self.weights[m, solutions[k]][:, solutions[k]]
+                values[k,m] = np.einsum('ij, ij->', self.positions, weights)
         
-        for i in range(population_size):
-            for current_objective in range(self.k_obj):
-                values[i, current_objective] = self.cost_of_solution(current_objective, solutions[i,:])
+        #for i in range(population_size):
+        #    for current_objective in range(self.k_obj):
+        #        values[i, current_objective] = self.cost_of_solution(current_objective, solutions[i,:])
 
         #for i in range(population):
         #    for current_objective in range(self.k_obj):
@@ -259,12 +362,21 @@ class QuadraticAssignment(Problem):
         Return the cost of a solution in its respective function
         Current complexity: O(n^2)
         """
-        total_cost = 0
-        for i in range(len(solution)):
-            for j in range(len(solution)):
-                total_cost += self.weights[function_indx, i, j] * self.positions[solution[i], solution[j]]
+        # Rearrange self.positions based on the solution
+        permuted_positions = self.positions[np.ix_(solution, solution)]
 
-        return total_cost//2
+        # Perform element-wise multiplication with the corresponding weights
+        total_cost = np.sum(self.weights[function_indx] * permuted_positions)
+
+        return total_cost // 2
+
+        #total_cost = 0
+        #for i in range(len(solution)):
+        #    for j in range(len(solution)):
+        #        total_cost += self.weights[function_indx, i, j] * self.positions[solution[i], solution[j]]
+        #
+        #return total_cost//2
+
 
 class MOSampling(Sampling):
 

@@ -20,7 +20,8 @@ from generation.utilities.algorithm.MO import compute_hypervolume
 from generation.utilities.algorithm.MO import non_dominated_sorting_vectorized
 from generation.utilities.algorithm.HH_auxiliars import compute_rank
 from generation.utilities.algorithm.HH_auxiliars import test_individual
-
+import numpy as np
+import matplotlib.pyplot as plt
 class HyperHeuristic():
 
     def __init__(self) -> None:
@@ -212,7 +213,7 @@ class HyperHeuristic():
             instance.non_dominated_front = set(instance.fronts[0])
 
             # Compute Nadir Points
-            instance.nadir_point = compute_nadir_point(instance.non_dominated_front)
+            instance.nadir_point = compute_nadir_point(instance.non_dominated_front) # TODO: Multiply by 1.1
 
             # Measure Hypervolume computation time.
             hv_time_init = time.time()
@@ -292,6 +293,9 @@ class HyperHeuristic():
         # Extract current phenotypes from population
         phenotypes = copy.deepcopy(self.population.get_phenotypes())
 
+        # Extract the genome usage of each individual
+        genome_usage = copy.deepcopy(self.population.get_genome_usage())
+
         # Create variable for new individuals
         offspring = []
 
@@ -299,16 +303,18 @@ class HyperHeuristic():
         while len(offspring) < self.num_offsprings:
 
             # Work with genomes only
-            parents = self.selection(genomes, scores)
-            children = self.crossover(parents)
+            parents, indices = self.selection(genomes, scores)
+            relevant_genomes = [genome_usage[i] for i in indices]
+
+            children = self.crossover(parents, relevant_genomes)
             children = self.mutation(children)
             
             for child in children:
                 # Create new individual.
                 ind = Individual(child, None)
                 
-                # Verify if individual is invalid or repeated
-                if ind.invalid or ind.phenotype in phenotypes:
+                # Verify if individual is invalid; or repeated
+                if ind.invalid: # or ind.phenotype in phenotypes:
                     continue
                 
                 # Verify if it outputs valid values.
@@ -316,14 +322,14 @@ class HyperHeuristic():
                     continue
 
                 # Verify individual hasn't already be created
-                elif ind.phenotype in self.already_seen:
-                    continue
+                #elif ind.phenotype in self.already_seen:
+                #    continue
                 
                 # Offspring is valid and outputs admisible results.
                 offspring.append(ind)
 
                 # Add it to already seen
-                self.already_seen.add(ind.phenotype)
+                #self.already_seen.add(ind.phenotype)
 
                 # Hard constraint, don't exceed num_offsprings.
                 if len(offspring) == self.num_offsprings:
@@ -368,7 +374,7 @@ class HyperHeuristic():
         # Sort population
         sorted_population = sorted(paired_population, key=lambda x: x[1])
 
-        # Remove the last n individuals with worse score
+        # Keep the E individuals with best score
         preserved_population = sorted_population[:elitism_size]
 
         # Merge preserved population with offsprings
@@ -389,20 +395,20 @@ class HyperHeuristic():
         for individual in self.population.individuals:
             individual.is_offspring = False
 
-        # Update consolidated front
-        for instance in self.instances:
-
-            # Instance name
-            instance_name = instance.instance_name
-
-            # Reset non dominated front
-            instance.non_dominated_front = set()
-
-            for individual in self.population.individuals:
-                # Add front to the consolidated
-                pareto_front = individual.pareto_fronts[instance_name]
-                instance.non_dominated_front = \
-                    instance.non_dominated_front.union( [tuple(element) for element in pareto_front.tolist()] )            
+        # Update consolidated front # TODO: Unnecesary.
+        #for instance in self.instances:
+#
+        #    # Instance name
+        #    instance_name = instance.instance_name
+#
+        #    # Reset non dominated front
+        #    instance.non_dominated_front = set()
+#
+        #    for individual in self.population.individuals:
+        #        # Add front to the consolidated
+        #        pareto_front = individual.pareto_fronts[instance_name]
+        #        instance.non_dominated_front = \
+        #            instance.non_dominated_front.union( [tuple(element) for element in pareto_front.tolist()] )
 
         return scores
 
@@ -431,7 +437,7 @@ class HyperHeuristic():
         self.population.initialize_population(self.population_size)
         
         # Store phenotypes in memory.
-        self.already_seen = self.already_seen.union(self.population.get_phenotypes())
+        #self.already_seen = self.already_seen.union(self.population.get_phenotypes())
 
         print("Evaluating initial population...")
         
@@ -443,10 +449,28 @@ class HyperHeuristic():
         population_saver.save_population(self.population, generation=0)
         population_saver.save_consolidated_fronts(self.instances, generation=0)
 
+        # TODO: DELETE THIS
+        fig, ax = plt.subplots(1,1)
+
         for gen in range(1, self.num_generations + 1):
 
             print(f"\nGeneration {gen}/{self.num_generations}")
             logger.info(f"Generation {gen}/{self.num_generations}")
+
+            # TODO: DELETE THIS
+            instance_1 = self.instances[0]
+            instance_name = instance_1.instance_name
+            non_dom = np.array(list(instance_1.non_dominated_front))
+            nadir_p = instance_1.nadir_point
+
+            plt.cla()
+            ax.scatter(non_dom[:,0], non_dom[:,1], s=10, c="k")
+            ax.scatter(nadir_p[0], nadir_p[1], s=10, c="r")
+            for indv in self.population.get_population():
+                frt = indv.pareto_fronts[instance_name]
+                ax.scatter(frt[:,0], frt[:,1], s=1, c="b")
+            
+            plt.pause(0.1)
 
             # Generate offsprings
             self.evolutionary_step(scores)
@@ -458,6 +482,8 @@ class HyperHeuristic():
             # for all the individuals (N+n), else just n new individuals.
 
             # Evaluate offsprings
+            ## Evaluation steps will test all offspring, and the consolidated will
+            ## not fulfill the non-dominated condition after it, since new solutions are added.
             self.evaluation_step()
             scores = self.compute_metrics()
 
@@ -478,7 +504,7 @@ class HyperHeuristic():
             
             print(f"\nBest Individual: {self.population.individuals[0].phenotype}")
             logger.info(f"Best Individual: {self.population.individuals[0].phenotype}")
-
+        plt.show()
         # Print total time
         end = time.time()
         seconds = round(end - start_time, 2)

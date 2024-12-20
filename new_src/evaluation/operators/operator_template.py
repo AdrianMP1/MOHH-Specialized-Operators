@@ -37,7 +37,10 @@ class HH_Operator(Crossover):
             # Evaluate with operator
             child = eval(self.expression)
 
-            if self.solution_type == "real":
+            if isinstance(child, tuple):
+                Y[0, k], Y[1, k] = child[0], child[1]
+
+            elif self.solution_type == "real":
                 Y[0, k], Y[1, k] = child, 1 - child
             
             else:

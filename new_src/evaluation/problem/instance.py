@@ -567,6 +567,7 @@ class QuadraticAssignment_nonParallel(Problem):
 
         return total_cost//2
 
+
 class MOSampling(Sampling):
 
     def __init__(self, kind: str="real") -> None:

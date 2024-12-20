@@ -18,8 +18,8 @@ from evaluation.problem.instance import Instance
 
 from evaluation.algorithms import MOEA_Decomposition, NSGAII, SMS_MOEA, IBEA
 
-n_experiments = 2
-solution_type = "Real"
+n_experiments = 11
+solution_type = "Natural"
 
 # Load an already initial population?
 initial_population_path = ""
@@ -27,7 +27,8 @@ initial_population_path = ""
 # Solvers
 solver_names = ["MOEAD", "NSGAII", "SMSEMOA"]
 
-all_mutation = ["NullMutation", "PM_Mutation"]
+#all_mutation = ["NullMutation", "PM_Mutation"]
+all_mutation = ["NullMutation", "Swap_Mutation"]
 
 def make_experiment_paths(experiment_path: list[str]):
 
@@ -78,6 +79,7 @@ def generate_incremental_seeds(seeds_number: int, instance_name: str) -> list:
             pass
     
     return seeds
+
 
 def save_seeds(seeds: list, folder_path: str, instance_name: str):
 
@@ -180,7 +182,7 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
         all_crossover.append(("operator_template", operators[i+1], solver_name, "Middle"))
         all_crossover.append(("operator_template", operators[i+2], solver_name, "Worst"))
 
-    all_crossover.append(("crossover", "SBX_Cross", "None", "Standard"))
+    #all_crossover.append(("crossover", "SBX_Cross", "None", "Standard"))
     all_crossover.append(("crossover", "PMX_Cross", "None", "Standard"))
 
     # Set the parameters
@@ -232,7 +234,8 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
             combination_name = combination[3]
             solver_used = combination[4]
 
-            kind = "real" if cross_operator != "PMX_Cross" else "permutation"
+            #kind = "real" if cross_operator != "PMX_Cross" else "permutation"
+            kind = "permutation"
 
             for solver_name in solver_names:
 

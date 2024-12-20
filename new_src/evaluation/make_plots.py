@@ -4,7 +4,7 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 
-solver_names = ["MOEAD", "NSGAII", "SMSEMOA"]
+solver_names = ["MOEAD"]#, "NSGAII", "SMSEMOA"]
 
 def sort_columns_by_prefix(df):
 
@@ -37,7 +37,8 @@ def create_repeated_color_code(n):
 
     # Generate n random colors
     base_colors = np.random.choice(['b', 'g', 'r', 'c', 'm', 'y', 'k'], size=n, replace=False)
-    base_colors = ["grey", "cadetblue", "limegreen", "orange", "red"]
+    #base_colors = ["grey", "cadetblue", "limegreen", "orange", "red"]
+    base_colors = ["cadetblue", "limegreen", "orange", "red"]
     #repeated_colors = [color for color in base_colors for _ in range(2)]
     repeated_colors = base_colors * n
 

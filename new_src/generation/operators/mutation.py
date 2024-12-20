@@ -73,7 +73,7 @@ class BitFlipMutation(Mutation):
             genome = np.array(genome)
         
         mutation_mask = np.random.rand(len(genome)) < self.probability
-        mutations = np.random.randint(-10,10, size=len(genome))
+        mutations = np.random.randint(-5, 5, size=len(genome))
 
         mutated_genome = genome + mutation_mask * mutations
         mutated_genome = np.clip(mutated_genome, 0, self.upper_limit)

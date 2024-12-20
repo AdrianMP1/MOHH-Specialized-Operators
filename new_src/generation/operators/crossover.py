@@ -20,7 +20,7 @@ class Crossover(GeneticOperator):
         
         self.n_parents = n_parents
     
-    def __call__(self, parents: list) -> list:
+    def __call__(self, parents: list, genomes_usage: list = None) -> list:
         """
         Computes crossover from the parents list.
 
@@ -32,7 +32,7 @@ class Crossover(GeneticOperator):
         parents_copy = [copy.deepcopy(parent) for parent in parents]
         
         # Create offsprings
-        offspring = self.run(*parents_copy)
+        offspring = self.run(*parents_copy, genomes_usage)
 
         if offspring is None:
             # Crossover failed
@@ -64,7 +64,7 @@ class KPointCrossover(Crossover):
 
         self.k_points = k_points
 
-    def run(self, parent1: list, parent2: list) -> tuple:
+    def run(self, parent1: list, parent2: list, genome_usage: list) -> tuple:
         """
         Execute the k-point crossover
 
@@ -74,8 +74,14 @@ class KPointCrossover(Crossover):
         if len(parent1) != len(parent2):
             raise ValueError("Parents must have the same length.")
         
+        # Get the upper bound of genome relevance
+        max_k = max(genome_usage)
+        
         # Create k random points and sort them.
-        crossover_points: list = sorted(random.sample(range(1, len(parent1)), self.k_points))
+        k1 = 1
+        k2 = random.sample(range(2, max_k), k=1)[0]
+        crossover_points: list = [k1, k2]
+        #crossover_points: list = sorted(random.sample(range(1, len(parent1)), self.k_points))
 
         # Initialize datastructures for offsprings
         offspring1, offspring2 = parent1.copy(), parent2.copy()

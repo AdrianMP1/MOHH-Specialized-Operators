@@ -24,13 +24,22 @@ class Selection(GeneticOperator):
         """
 
         # Initialize an empty variable for selected individuals
+        indices = []
         parents = []
 
-        for _ in range(self.num_parents):
+        while len(parents) < self.num_parents:
+#        for _ in range(self.num_parents):
             # Select individual and add it to the parent list
-            parents.append(self.run(population, scores))
+            selected, index = self.run(population, scores)
+
+            if index in indices:
+                continue
+
+            indices.append(index)
+            parents.append(selected)
+            #parents.append(self.run(population, scores))
         
-        return parents
+        return parents, indices
     
     def run(self):
         """
@@ -71,4 +80,4 @@ class Tournament(Selection):
         winner_index = candidates_scores.index(min(candidates_scores))
 
         # Return the winner candidate
-        return candidates[winner_index]
+        return candidates[winner_index], indices[winner_index]

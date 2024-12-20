@@ -37,13 +37,29 @@ class HH_Operator(Crossover):
             # Evaluate with operator
             child = eval(self.expression)
 
-            if self.solution_type == "real":
+            #if isinstance(child, tuple):
+            #    if not(self.is_permutation(child[0])):
+            #        print("OPERATORS WITH INVALID SOLUTIONS")
+            #else:
+            #    if not(self.is_permutation(child)):
+            #        print("OPERATORS WITH INVALID SOLUTIONS")
+                    
+            if isinstance(child, tuple):
+                Y[0, k], Y[1, k] = child[0], child[1]
+
+            elif self.solution_type == "real":
                 Y[0, k], Y[1, k] = child, 1 - child
             
             else:
                 Y[0, k], Y[1, k] = child, child[::-1]
         return Y
     
+    def is_permutation(self, array: np.ndarray):
+        """
+        Check if the array has the correct length
+        and contains unique elements.
+        """
+        return set(array) == set(range(len(array)))
 
 class NullMutation(Mutation):
 

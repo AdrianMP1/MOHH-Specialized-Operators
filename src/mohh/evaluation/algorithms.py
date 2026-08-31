@@ -22,25 +22,25 @@ from pymoo.core.callback import Callback
 
 class MyCallback(Callback):
 
-    def __init__(self):
+    def __init__(self, population_size: int, eval_budgets: dict):
         super().__init__()
         self.populations = {}
 
+        # Convert evaluation budgets into the generation at which they're reached.
+        self.checkpoints = {label: max(1, budget // population_size)
+                            for label, budget in eval_budgets.items()}
+
     def notify(self, algorithm):
-        
-        if algorithm.n_gen in [100, 300, 500]:
-            results = algorithm.result()
-            pareto_set = results.X
-            pareto_front = results.F
 
-            pareto_front, mask = np.unique(pareto_front, return_index=True, axis=0)
+        for label, checkpoint_gen in self.checkpoints.items():
 
-            if algorithm.n_gen == 100:
-                self.populations["10k"] = pareto_front
-            elif algorithm.n_gen == 300:
-                self.populations["30k"] = pareto_front
-            elif algorithm.n_gen == 500:
-                self.populations["50k"] = pareto_front
+            if algorithm.n_gen == checkpoint_gen:
+                results = algorithm.result()
+                pareto_front = results.F
+
+                pareto_front, mask = np.unique(pareto_front, return_index=True, axis=0)
+
+                self.populations[label] = pareto_front
 
 
 class MOSolver(ABC):
@@ -150,7 +150,8 @@ class MOEA_Decomposition(MOSolver):
         )
 
         self.algorithm.setup(self.problem, termination=("n_gen", self.generations),
-                             verbose=False, seed=seed, callback=MyCallback())
+                             verbose=False, seed=seed,
+                             callback=MyCallback(self.pop_size, params["EVAL_BUDGETS"]))
     
     def solve_instance(self):
         """

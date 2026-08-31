@@ -23,6 +23,16 @@ def _generation_overrides(args) -> dict:
 
     return overrides
 
+def _parse_eval_budgets(value: str) -> dict:
+
+    budgets = {}
+
+    for pair in value.split(","):
+        label, budget = pair.split(":")
+        budgets[label] = int(budget)
+
+    return budgets
+
 def _evaluation_overrides(args, solvers: list) -> dict:
 
     overrides = {"SOLVERS": solvers}
@@ -33,6 +43,8 @@ def _evaluation_overrides(args, solvers: list) -> dict:
         overrides["MO_GENERATIONS"] = args.mo_generations
     if args.n_experiments is not None:
         overrides["N_EXPERIMENTS"] = args.n_experiments
+    if args.eval_budgets is not None:
+        overrides["EVAL_BUDGETS"] = _parse_eval_budgets(args.eval_budgets)
 
     return overrides
 
@@ -40,6 +52,11 @@ def _add_mo_args(parser: argparse.ArgumentParser):
 
     parser.add_argument("--mo-population-size", type=int, default=None)
     parser.add_argument("--mo-generations", type=int, default=None)
+
+def _add_eval_budgets_arg(parser: argparse.ArgumentParser):
+
+    parser.add_argument("--eval-budgets", default=None,
+                        help="Comma-separated label:evaluations pairs, e.g. 10k:10500,30k:31500,50k:52500.")
 
 def generate():
 
@@ -66,6 +83,7 @@ def evaluate():
     parser.add_argument("--solvers", default=None, help="Comma-separated solvers (default: from params).")
     parser.add_argument("--n-experiments", type=int, default=None)
     _add_mo_args(parser)
+    _add_eval_budgets_arg(parser)
     args = parser.parse_args()
 
     solvers = args.solvers.split(",") if args.solvers else evaluation_params_dict["SOLVERS"]
@@ -85,6 +103,7 @@ def run_full():
     parser.add_argument("--elite-size", type=int, default=None)
     parser.add_argument("--n-experiments", type=int, default=None)
     _add_mo_args(parser)
+    _add_eval_budgets_arg(parser)
     args = parser.parse_args()
 
     if not args.full:

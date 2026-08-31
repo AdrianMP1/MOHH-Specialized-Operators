@@ -21,6 +21,11 @@ mo_params = {
     # Number of repeated experiments per instance/combination
     'N_EXPERIMENTS': 11,
 
+    # Evaluation budgets to snapshot during a run (label: total evaluations).
+    # 10500/31500/52500 = 105 (default MO_POPULATION_SIZE) * 100/300/500,
+    # matching the published experiments.
+    'EVAL_BUDGETS': {"10k": 10500, "30k": 31500, "50k": 52500},
+
     # Evolutionary parameters
     'MO_POPULATION_SIZE': 105,
     'MO_GENERATIONS': 500,

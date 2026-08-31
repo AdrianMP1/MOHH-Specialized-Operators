@@ -211,6 +211,7 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
     params = Params()
     solver_names = params["SOLVERS"]
     n_experiments = params["N_EXPERIMENTS"]
+    eval_labels = list(params["EVAL_BUDGETS"].keys())
 
     # Set operators
     # Best, middle, worst
@@ -258,14 +259,10 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
         save_seeds(seeds, params["FILE_PATH_INITIAL_SOLUTIONS"], instance_name)
 
         # Make a consolidated for instance
-        consolidated_10k = set()
-        consolidated_30k = set()
-        consolidated_50k = set()
+        consolidated = {label: set() for label in eval_labels}
 
         # To store fronts for that instance-operators-model
-        fronts_model_level = {"10k":{},
-                              "30k":{},
-                              "50k":{}}
+        fronts_model_level = {label: {} for label in eval_labels}
 
         # For each operators combination
         for combination in get_combinations(all_crossover):
@@ -285,9 +282,7 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
                 solver = build_solver(solver_name, cross_type, cross_operator, mutation_operator)
 
                 # To store pareto fronts for that instance-operators-model-experiment
-                fronts_exp_level = {"10k":{},
-                                    "30k":{},
-                                    "50k":{}}
+                fronts_exp_level = {label: {} for label in eval_labels}
 
                 # Perform N experiments with this configuration
                 with_crossover = "Own" if cross_type == "operator_template" else "SBX"
@@ -312,24 +307,19 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
                     # Solve
                     results = solver.solve_instance()
 
-                    # Extract results
-                    pareto_front_10k = results["10k"]
-                    pareto_front_30k = results["30k"]
-                    pareto_front_50k = results["50k"]
-                    #_, pareto_front = results[:2]
+                    # Extract results (a budget may be unreached if MO_GENERATIONS is too small)
+                    for label in eval_labels:
 
-                    # Store results
-                    fronts_exp_level["10k"][f"Experiment {i:03d}"] = pareto_front_10k
-                    fronts_exp_level["30k"][f"Experiment {i:03d}"] = pareto_front_30k
-                    fronts_exp_level["50k"][f"Experiment {i:03d}"] = pareto_front_50k
-                    #fronts_exp_level[f"Experiment {i:03d}"] = pareto_front
+                        pareto_front = results.get(label)
 
-                    # Update consolidated
-                    consolidated_10k = consolidated_10k.union([tuple(point) for point in pareto_front_10k.tolist()])
-                    consolidated_30k = consolidated_30k.union([tuple(point) for point in pareto_front_30k.tolist()])
-                    consolidated_50k = consolidated_50k.union([tuple(point) for point in pareto_front_50k.tolist()])
-                    
-                    #consolidated = consolidated.union([tuple(point) for point in pareto_front.tolist()])
+                        if pareto_front is None:
+                            continue
+
+                        # Store results
+                        fronts_exp_level[label][f"Experiment {i:03d}"] = pareto_front
+
+                        # Update consolidated
+                        consolidated[label] = consolidated[label].union([tuple(point) for point in pareto_front.tolist()])
 
                     #* Note: Each iteration of this loop, returns a pareto_front
 
@@ -340,10 +330,9 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
                 elif combination_name == "Standard" and cross_operator == "CX_Cross":
                     combination_name = "CX"
 
-                fronts_model_level["10k"][f"{solver_name}_{combination_name}_{with_mutation}_{solver_used}"] = fronts_exp_level["10k"]
-                fronts_model_level["30k"][f"{solver_name}_{combination_name}_{with_mutation}_{solver_used}"] = fronts_exp_level["30k"]
-                fronts_model_level["50k"][f"{solver_name}_{combination_name}_{with_mutation}_{solver_used}"] = fronts_exp_level["50k"]
-                #fronts_model_level[f"{solver_name}_{combination_name}_{with_mutation}_{solver_used}"] = fronts_exp_level
+                for label in eval_labels:
+                    if fronts_exp_level[label]:
+                        fronts_model_level[label][f"{solver_name}_{combination_name}_{with_mutation}_{solver_used}"] = fronts_exp_level[label]
 
                 del solver
 
@@ -361,46 +350,44 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
 
         #* Make a dataframe for that instance
 
-        # Get the best front
-        best_front_10k = non_dominated_sorting_vectorized(consolidated_10k)[0]
-        best_front_30k = non_dominated_sorting_vectorized(consolidated_30k)[0]
-        best_front_50k = non_dominated_sorting_vectorized(consolidated_50k)[0]
-        #best_front = non_dominated_sorting_vectorized(consolidated)[0]
-
         # Ensure nadir is not computed from a best_front that dominates every other point.
+        # Stop peeling once there's nothing left beyond the current front (tiny consolidated sets).
         def comprobate(front, consol):
-            while len(front) <= 2:
+            while len(front) <= 2 and len(consol) > len(front):
                 for point in front:
                     consol.remove(point)
                 front = non_dominated_sorting_vectorized(consol)[0]
 
             return front
 
-        best_front_10k = comprobate(best_front_10k, consolidated_10k)
-        best_front_30k = comprobate(best_front_30k, consolidated_30k)
-        best_front_50k = comprobate(best_front_50k, consolidated_50k)
+        # Get the best front per reached evaluation budget
+        best_fronts = {}
+        best_fronts_norm = {}
+        boundaries = {}
 
-        min_10k, max_10k = np.min(best_front_10k, axis=0), np.max(best_front_10k, axis=0)
-        min_30k, max_30k = np.min(best_front_30k, axis=0), np.max(best_front_30k, axis=0)
-        min_50k, max_50k = np.min(best_front_50k, axis=0), np.max(best_front_50k, axis=0)
-        boundaries = {"10k": [min_10k, max_10k],
-                      "30k": [min_30k, max_30k],
-                      "50k": [min_50k, max_50k]}
+        for label in eval_labels:
 
-        best_front_10k_norm = normalize_values(best_front_10k, min_10k, max_10k)
-        best_front_30k_norm = normalize_values(best_front_30k, min_30k, max_30k)
-        best_front_50k_norm = normalize_values(best_front_50k, min_50k, max_50k)
+            if not consolidated[label]:
+                continue
 
-        #while len(best_front) <= 2:
-        #    for point in best_front:
-        #        consolidated.remove(point)
-        #    best_front = non_dominated_sorting_vectorized(consolidated)[0]
+            best_front = non_dominated_sorting_vectorized(consolidated[label])[0]
+            best_front = comprobate(best_front, consolidated[label])
+
+            min_val, max_val = np.min(best_front, axis=0), np.max(best_front, axis=0)
+            boundaries[label] = [min_val, max_val]
+
+            best_fronts[label] = best_front
+            best_fronts_norm[label] = normalize_values(best_front, min_val, max_val)
 
         # Compute Nadir point
         nadir_point = np.array([1.1, 1.1])
         #nadir_point = compute_nadir_point(set(best_front))
 
-        for evals in ["10k", "30k", "50k"]:
+        for evals in eval_labels:
+
+            if evals not in boundaries:
+                continue
+
             # Dataframe data
             data = {}
 
@@ -434,18 +421,8 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
                 data[model_operators] = column_data
             
             # Write the best front
-            if evals == "10k":
-                best = best_front_10k
-                best_norm = best_front_10k_norm
-            elif evals == "30k":
-                best = best_front_30k
-                best_norm = best_front_30k_norm
-            elif evals == "50k":
-                best = best_front_50k
-                best_norm = best_front_50k_norm
-
-            write_front(np.array(best), os.path.join(front_save_path, f"best_front_consolidated.pof"))
-            write_front(np.array(best_norm), os.path.join(front_save_path, f"best_front_consolidated_norm.pof"))
+            write_front(np.array(best_fronts[evals]), os.path.join(front_save_path, f"best_front_consolidated.pof"))
+            write_front(np.array(best_fronts_norm[evals]), os.path.join(front_save_path, f"best_front_consolidated_norm.pof"))
 
             # Make dataframe
             dataframe = pd.DataFrame(data)

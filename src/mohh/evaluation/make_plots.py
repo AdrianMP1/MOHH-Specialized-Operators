@@ -6,8 +6,6 @@ import matplotlib.pyplot as plt
 
 from mohh.evaluation.params import Params
 
-eval_steps = ["10k", "30k", "50k"]
-
 def sort_columns_by_prefix(df):
 
     columns = df.columns
@@ -127,7 +125,9 @@ def plot_boxplots_grouped(df, instance_name, folder_path,
 
 def make_figures(folder_path: str):
 
-    solver_names = Params()["SOLVERS"]
+    params = Params()
+    solver_names = params["SOLVERS"]
+    eval_steps = list(params["EVAL_BUDGETS"].keys())
 
     # Compute the limits of all solutions per instance (Visual purposes)
     instance_boundaries = {}
@@ -137,6 +137,10 @@ def make_figures(folder_path: str):
         for evals in eval_steps:
 
             solver_path = os.path.join(folder_path, solver, evals)
+
+            # A budget may be unreached if MO_GENERATIONS was too small
+            if not os.path.isdir(solver_path):
+                continue
 
             instance_files = os.listdir(solver_path)
 
@@ -184,6 +188,10 @@ def make_figures(folder_path: str):
         for evals in eval_steps:
 
             solver_path = os.path.join(folder_path, solver, evals)
+
+            # A budget may be unreached if MO_GENERATIONS was too small
+            if not os.path.isdir(solver_path):
+                continue
 
             instance_files = os.listdir(solver_path)
 

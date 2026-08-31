@@ -10,6 +10,6 @@ class GeneticOperator(ABC):
     def run(self):
         """
         Execute the operator
-        
+
         :return: Offsprings
         """

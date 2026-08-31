@@ -7,3 +7,6 @@ analysis_express*/
 *.zip
 *.log
 *.vscode
+*.egg-info/
+build/
+dist/

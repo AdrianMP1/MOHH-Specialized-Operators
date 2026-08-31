@@ -3,7 +3,7 @@ from math import floor
 from sys import maxsize
 from re import DOTALL, MULTILINE, finditer, match
 
-from mohh.evaluation.params import Params
+from mohh.core.params import Params
 
 # Load parameters
 params = Params()
@@ -43,9 +43,9 @@ class Grammar(object):
         self.min_path, self.max_arity, self.min_ramp = None, None, None
 
         # Set regular expressions for parsing BNF grammar.
-        self.ruleregex = '(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=).+?)+)'
-        self.productionregex = '(?=\#)(?:\#.*$)|(?!\#)\s*(?P<production>(?:[^\'\"\|\#]+|\'.*?\'|".*?")+)'
-        self.productionpartsregex = '\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|"(.*?)"|(?P<subrule><[^>|\s]+>)|([<]+)'
+        self.ruleregex = r'(?P<rulename><\S+>)\s*::=\s*(?P<production>(?:(?=\#)\#[^\r\n]*|(?!<\S+>\s*::=).+?)+)'
+        self.productionregex = r'(?=\#)(?:\#.*$)|(?!\#)\s*(?P<production>(?:[^\'\"\|\#]+|\'.*?\'|".*?")+)'
+        self.productionpartsregex = r'\ *([\r\n]+)\ *|([^\'"<\r\n]+)|\'(.*?)\'|"(.*?)"|(?P<subrule><[^>|\s]+>)|([<]+)'
 
         # to speed up the recursion step
         self.recursion_cache = {}

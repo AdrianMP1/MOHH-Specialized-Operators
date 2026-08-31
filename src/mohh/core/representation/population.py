@@ -1,8 +1,8 @@
 
 import numpy as np
 
-from mohh.evaluation.params import Params
-from mohh.evaluation.representation.mapper import mapper
+from mohh.core.params import Params
+from mohh.core.representation.mapper import mapper
 
 class Population():
 
@@ -118,7 +118,7 @@ class Population():
             phenotypes.append(individual.phenotype)
         
         return phenotypes
-    
+
 
 class Individual():
 

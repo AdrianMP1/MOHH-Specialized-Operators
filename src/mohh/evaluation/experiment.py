@@ -11,8 +11,8 @@ from datetime import datetime
 from itertools import product
 
 from mohh.evaluation.params import Params, set_params
-from mohh.evaluation.utilities.instance_utils import instance_paths
-from mohh.evaluation.utilities.algorithm.MO import compute_nadir_point, compute_hypervolume, non_dominated_sorting_vectorized
+from mohh.core.utilities.instance_utils import instance_paths
+from mohh.core.utilities.algorithm.MO import compute_nadir_point, compute_hypervolume, non_dominated_sorting_vectorized
 
 from mohh.evaluation.problem.instance import Instance
 
@@ -235,7 +235,7 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
     params = Params()
 
     # Get instances
-    instances = instance_paths()
+    instances = instance_paths(train=False)
 
     # Total time
     program_time = time.time()

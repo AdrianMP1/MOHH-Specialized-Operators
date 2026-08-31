@@ -1,9 +1,9 @@
 
 import os
 
-from mohh.generation.params import Params
+from mohh.core.params import Params
 
-def instance_paths(train: bool=True):
+def instance_paths(train: bool):
     """
     Access the datasets folder and load the files inside.
     """

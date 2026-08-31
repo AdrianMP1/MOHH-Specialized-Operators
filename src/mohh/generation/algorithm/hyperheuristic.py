@@ -13,11 +13,11 @@ from mohh.generation.representation.population import Population
 from mohh.generation.representation.population import Individual
 
 # Auxiliar functions
-from mohh.generation.utilities.print_utils import update_lines
-from mohh.generation.utilities.load_modules import find_module
-from mohh.generation.utilities.algorithm.MO import compute_nadir_point
-from mohh.generation.utilities.algorithm.MO import compute_hypervolume
-from mohh.generation.utilities.algorithm.MO import non_dominated_sorting_vectorized
+from mohh.core.utilities.print_utils import update_lines
+from mohh.core.utilities.load_modules import find_module
+from mohh.core.utilities.algorithm.MO import compute_nadir_point
+from mohh.core.utilities.algorithm.MO import compute_hypervolume
+from mohh.core.utilities.algorithm.MO import non_dominated_sorting_vectorized
 from mohh.generation.utilities.algorithm.HH_auxiliars import compute_rank
 from mohh.generation.utilities.algorithm.HH_auxiliars import test_individual
 import numpy as np

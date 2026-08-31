@@ -1,5 +1,5 @@
 
-from mohh.evaluation.params import Params
+from mohh.core.params import Params
 
 class Tree():
 

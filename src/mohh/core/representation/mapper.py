@@ -1,9 +1,9 @@
 
 import numpy as np
 
-from mohh.generation.params import Params
+from mohh.core.params import Params
 from collections import deque
-from mohh.generation.representation.tree import Tree
+from mohh.core.representation.tree import Tree
 
 
 def mapper(genome: list, tree: Tree):

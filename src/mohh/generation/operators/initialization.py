@@ -1,7 +1,7 @@
 
 import random
 
-from mohh.generation.representation.tree import Tree
+from mohh.core.representation.tree import Tree
 from mohh.generation.representation.population import Individual
 
 from mohh.generation.params import Params

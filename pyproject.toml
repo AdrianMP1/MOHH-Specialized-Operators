@@ -9,13 +9,13 @@ description = "Grammatical-evolution hyper-heuristic that generates multi-object
 authors = [
     { name = "Adrian M.", email = "adrian.im0502@gmail.com" }
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
-    "numpy",
-    "pymoo==0.6.1.5",
-    "matplotlib",
-    "pandas",
-    "tqdm",
+    "numpy>=2.0",
+    "pymoo>=0.6.1",
+    "matplotlib>=3.9",
+    "pandas>=2.3",
+    "tqdm>=4.67",
 ]
 
 [tool.hatch.build.targets.wheel]

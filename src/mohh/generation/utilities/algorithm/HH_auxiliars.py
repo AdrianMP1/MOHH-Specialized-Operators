@@ -1,6 +1,6 @@
 
 import numpy as np
-from mohh.generation.utilities.algorithm.HH_functions import *
+from mohh.core.utilities.algorithm.HH_functions import *
 
 
 def compute_rank(hypervolumes: list) -> list:

@@ -1,7 +1,7 @@
 
 import numpy as np
 
-from mohh.generation.params import Params
+from mohh.core.params import Params
 from pymoo.indicators.hv import HV
 
 params = Params()

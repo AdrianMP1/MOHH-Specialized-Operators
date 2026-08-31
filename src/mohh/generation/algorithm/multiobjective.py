@@ -5,7 +5,7 @@ import numpy as np
 from mohh.generation.params import Params
 
 from mohh.generation.problem.instance import Instance
-from mohh.generation.utilities.load_modules import find_module
+from mohh.core.utilities.load_modules import find_module
 from mohh.generation.operators.operator_template import NullMutation
 
 from pymoo.algorithms.moo.moead import MOEAD

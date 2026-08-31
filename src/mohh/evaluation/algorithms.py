@@ -7,7 +7,7 @@ from mohh.evaluation.params import Params
 from abc import ABC, abstractmethod
 
 from mohh.evaluation.problem.instance import Instance
-from mohh.evaluation.utilities.load_modules import find_module
+from mohh.core.utilities.load_modules import find_module
 from mohh.evaluation.operators.operator_template import NullMutation
 
 from pymoo.core.evaluator import Evaluator

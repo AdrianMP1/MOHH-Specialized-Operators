@@ -9,7 +9,7 @@ class GeneticOperator(ABC):
     @abstractmethod
     def run(self):
         """
-        Execute the operator
+        Execute the operator.
 
         :return: Offsprings
         """

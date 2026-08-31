@@ -1,0 +1,16 @@
+# Grammar for permutation based crossover
+<expr> ::= <blocks>|<binary_func>(<expr>,<expr>)|<unary_func>(<expr>)|<var>
+
+<blocks> ::= <orderbased>
+
+<binary_func> ::= map_list|alternate_elements
+
+<unary_func> ::= move_right|reverse
+
+<orderbased> ::= order_based(<fill>,<preserve>,<var>,<expr>)
+
+<fill> ::= fill_first_occurring
+
+<preserve> ::= preserve_elements|preserve_segments
+
+<var> ::= x|y

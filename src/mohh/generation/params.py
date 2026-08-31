@@ -7,6 +7,7 @@ from datetime import datetime
 from socket import gethostname
 
 from mohh.core.params import Params
+from mohh.core.utilities.paths import project_root
 
 hostname = gethostname().split(".")
 machine_name = hostname[0]
@@ -142,11 +143,14 @@ def load_params():
     pass
 
 
-def set_params(experiment_path: str, current_model: str):
+def set_params(experiment_path: str, current_model: str, overrides: dict = None):
 
     # Initialize singleton object with params
     params = Params()
     params.update_params(params_dict)
+
+    if overrides:
+        params.update_params(overrides)
 
     # Load Grammar & Saver
     from mohh.core.representation import grammar
@@ -186,5 +190,5 @@ def set_params(experiment_path: str, current_model: str):
     
     # Parse grammar file and set grammar class
     params["BNF_GRAMMAR"] = grammar.Grammar(
-        os.path.join("grammars", params["GRAMMAR_FILE"])
+        os.path.join(project_root(), "grammars", params["GRAMMAR_FILE"])
     )

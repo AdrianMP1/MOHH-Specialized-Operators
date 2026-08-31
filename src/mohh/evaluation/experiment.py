@@ -18,14 +18,10 @@ from mohh.evaluation.problem.instance import Instance
 
 from mohh.evaluation.algorithms import MOEA_Decomposition, NSGAII, SMS_MOEA, IBEA
 
-n_experiments = 11
 solution_type = "Natural"
 
 # Load an already initial population?
 initial_population_path = ""
-
-# Solvers
-solver_names = ["MOEAD"]
 
 #all_mutation = ["NullMutation", "PM_Mutation"]
 all_mutation = ["NullMutation", "Swap_Mutation"]
@@ -39,7 +35,7 @@ def make_experiment_paths(experiment_path: list[str]):
 
     dir_path = os.path.join(experiment_path, folder_name)
 
-    for solver in solver_names:
+    for solver in params["SOLVERS"]:
 
         solver_path = os.path.join(dir_path, solver)
 
@@ -206,7 +202,15 @@ def write_front(front: np.ndarray, file_path: str):
         file.close()
 
 
-def run_experiments(experiment_path, results_paths, operators) -> str:
+def run_experiments(experiment_path, results_paths, operators, overrides: dict = None) -> str:
+
+    # Set the parameters
+    set_params(overrides)
+
+    # Load parameters
+    params = Params()
+    solver_names = params["SOLVERS"]
+    n_experiments = params["N_EXPERIMENTS"]
 
     # Set operators
     # Best, middle, worst
@@ -225,14 +229,8 @@ def run_experiments(experiment_path, results_paths, operators) -> str:
     all_crossover.append(("crossover", "PMX_Cross", "None", "Standard"))
     all_crossover.append(("crossover", "CX_Cross", "None", "Standard"))
 
-    # Set the parameters
-    set_params()
-
     # Make folders
     make_experiment_paths(experiment_path)
-
-    # Load parameters
-    params = Params()
 
     # Get instances
     instances = instance_paths(train=False)

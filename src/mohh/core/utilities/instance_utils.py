@@ -2,6 +2,7 @@
 import os
 
 from mohh.core.params import Params
+from mohh.core.utilities.paths import project_root
 
 def instance_paths(train: bool):
     """
@@ -10,7 +11,7 @@ def instance_paths(train: bool):
 
     params = Params()
 
-    dataset_path = os.path.join(os.getcwd(), "datasets", params["DATASET"])
+    dataset_path = os.path.join(project_root(), "datasets", params["DATASET"])
 
     if train:
         target_path = os.path.join(dataset_path, "train")

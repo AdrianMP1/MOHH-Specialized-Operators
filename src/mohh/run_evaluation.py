@@ -1,10 +1,7 @@
 import os
 from mohh.evaluation.main import execute_experiments
 
-#solver_names = ["MOEAD", "NSGAII", "SMSEMOA"]
-solver_names = ["MOEAD"]
-
-def extract_operators(experiment_path: str):
+def extract_operators(experiment_path: str, solver_names: list):
 
     operators = []
 
@@ -20,10 +17,3 @@ def extract_operators(experiment_path: str):
                 operators.append(operator)
 
     return operators
-
-
-if __name__ == "__main__":
-
-    operators = extract_operators("results/Experiment_007")
-
-    execute_experiments("results/Experiment_007", "", operators)

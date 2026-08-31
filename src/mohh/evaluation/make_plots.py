@@ -4,8 +4,8 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 
-#solver_names = ["MOEAD", "NSGAII", "SMSEMOA"]
-solver_names = ["MOEAD"]
+from mohh.evaluation.params import Params
+
 eval_steps = ["10k", "30k", "50k"]
 
 def sort_columns_by_prefix(df):
@@ -126,6 +126,8 @@ def plot_boxplots_grouped(df, instance_name, folder_path,
 
 
 def make_figures(folder_path: str):
+
+    solver_names = Params()["SOLVERS"]
 
     # Compute the limits of all solutions per instance (Visual purposes)
     instance_boundaries = {}

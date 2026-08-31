@@ -7,12 +7,19 @@ from datetime import datetime
 from socket import gethostname
 
 from mohh.core.params import Params
+from mohh.core.utilities.paths import project_root
 
 hostname = gethostname().split(".")
 machine_name = hostname[0]
 
 mo_params = {
 
+    # Solvers to benchmark
+    #'SOLVERS': ["MOEAD", "NSGAII", "SMSEMOA"],
+    'SOLVERS': ["MOEAD"],
+
+    # Number of repeated experiments per instance/combination
+    'N_EXPERIMENTS': 11,
 
     # Evolutionary parameters
     'MO_POPULATION_SIZE': 105,
@@ -101,11 +108,14 @@ def load_params():
     pass
 
 
-def set_params():
+def set_params(overrides: dict = None):
 
     # Initialize singleton object with params
     params = Params()
     params.update_params(params_dict)
+
+    if overrides:
+        params.update_params(overrides)
 
     # Load Grammar & Saver
     from mohh.core.representation import grammar
@@ -141,5 +151,5 @@ def set_params():
     
     # Parse grammar file and set grammar class
     params["BNF_GRAMMAR"] = grammar.Grammar(
-        os.path.join("grammars", params["GRAMMAR_FILE"])
+        os.path.join(project_root(), "grammars", params["GRAMMAR_FILE"])
     )

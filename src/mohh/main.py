@@ -3,9 +3,6 @@ import os
 import json
 
 from mohh.generation.main import execute_generation
-from mohh.evaluation.main import execute_experiments
-
-test_individuals = True
 
 def read_json(data_path: str) -> dict:
 
@@ -14,11 +11,9 @@ def read_json(data_path: str) -> dict:
         f.close()
 
     return data
-# TODO: Alternate_segments is not used. Swap was removed also.
-# TODO: fill_first_occurring has a bug. j sometimes is out of bounds.
-if __name__ == "__main__":
 
-    # Experiments path
+def make_experiment_path() -> str:
+
     number = 1
     experiment_path = os.path.join("results", f"Experiment_{number:03d}")
 
@@ -27,22 +22,23 @@ if __name__ == "__main__":
         experiment_path = os.path.join("results", f"Experiment_{number:03d}")
     os.makedirs(experiment_path, exist_ok=True)
 
-    # MO_Models to try
-    models = ["MOEAD"]#, "NSGAII", "SMSEMOA"]
+    return experiment_path
+
+# TODO: Alternate_segments is not used. Swap was removed also.
+# TODO: fill_first_occurring has a bug. j sometimes is out of bounds.
+def run_generation(experiment_path: str, models: list, overrides: dict = None) -> list:
 
     phenotypes = []
-
-    results_paths = []
 
     for mo_model in models:
 
         # First, run generation code
-        results_path, generations_path, individuals_path, elite_size = execute_generation(mo_model, experiment_path)
+        results_path, generations_path, individuals_path, elite_size = execute_generation(mo_model, experiment_path, overrides)
 
         # Get the last generation
         last_generation_path = os.path.join(generations_path, os.listdir(generations_path)[-1], "population.json")
         last_population = read_json(last_generation_path)
-        
+
         # Indices for the selected operators
         indices = [0, (elite_size - 1) // 2, elite_size - 1]
 
@@ -53,25 +49,25 @@ if __name__ == "__main__":
         operator_paths = [os.path.join(individuals_path, operator, "general_info.json") for operator in operators]
 
         # Load jsons and extract phenotypes
+        model_phenotypes = []
         for operator_path in operator_paths:
 
             individual_data = read_json(operator_path)
             phenotype = individual_data["phenotype"]
-            phenotypes.append(phenotype)
-        
-        # Get experiment paths
-        results_path_components = results_path.replace("\\", "/").split("/")
-        results_path = "/".join(results_path_components[:-1])
-        results_paths.append(results_path)
+            model_phenotypes.append(phenotype)
 
-    # Save the operators
-    groups = [phenotypes[i:i+3] for i in range(0, len(phenotypes), 3)]
-
-    for index, model in enumerate(models):
-        filename = os.path.join(experiment_path, f"{model}_operators.txt")
+        # Save the operators
+        filename = os.path.join(experiment_path, f"{mo_model}_operators.txt")
         with open(filename, "w") as file:
-            for label, operator in zip(["Best", "Middle", "Worst"], groups[index]):
+            for label, operator in zip(["Best", "Middle", "Worst"], model_phenotypes):
                 file.write(f"{label}: {operator}\n")
             file.close()
-     
-    #execute_experiments(experiment_path, results_paths, phenotypes)
+
+        phenotypes.extend(model_phenotypes)
+
+    return phenotypes
+
+if __name__ == "__main__":
+
+    experiment_path = make_experiment_path()
+    run_generation(experiment_path, ["MOEAD"])

@@ -18,5 +18,10 @@ dependencies = [
     "tqdm>=4.67",
 ]
 
+[project.scripts]
+mohh-generate = "mohh.cli:generate"
+mohh-evaluate = "mohh.cli:evaluate"
+mohh-run = "mohh.cli:run_full"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/mohh"]

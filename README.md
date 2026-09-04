@@ -1,7 +1,7 @@
 # Specialized Operators via a Multi-Objective Hyper-Heuristic
 
 Source code for the paper:<br>
-**Automatic Design of Specialized Variation Operators for the Multi-Objective Quadratic Assignment Problem**
+**Automatic Design of Specialized Variation Operators for the Multi-Objective Quadratic Assignment Problem** <br>
 [GECCO, 2025]
 
 > **[Authors]**<br>

@@ -18,7 +18,7 @@ def execute_generation(mo_model: str, experiment_path: str, overrides: dict = No
                  .load_operator("crossover", "KPointCrossover", n_parents=params["CROSSOVER_PARENTS"], k_points=params["CROSSOVER_K_POINTS"])
                  .load_operator("mutation", "BitFlipMutation", probability=params["MUTATION_PROBABILITY"])
                  )
-    
+
     algorithm.mo_model_name = mo_model
 
     # Get instances
@@ -37,6 +37,3 @@ def execute_generation(mo_model: str, experiment_path: str, overrides: dict = No
     # Return the path with the last generation operators
     return params_dict["FILE_PATH"], params_dict["FILE_PATH_GENERATIONS"], params_dict["FILE_PATH_INDIVIDUALS"], params_dict["ELITE_SIZE"]
 
-if __name__ == "__main__":
-
-    execute_generation()

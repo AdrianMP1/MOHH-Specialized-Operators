@@ -19,7 +19,7 @@ class Mutation(GeneticOperator):
         """
         Computes mutation for all the individuals.
 
-        @param individuals: list of individuals genomes to be mutated.
+        @param population: list of individuals genomes to be mutated.
 
         :return: Mutated genomes.
         """
@@ -60,7 +60,7 @@ class BitFlipMutation(Mutation):
         """
         Mutates an individual genome.
 
-        @param individual: Genome of the individual.
+        @param genome: Genome of the individual.
 
         :return: New genome
         """

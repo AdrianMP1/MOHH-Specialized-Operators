@@ -14,13 +14,4 @@ def execute_experiments(experiment_path, results_paths, operators, overrides: di
     # Reset params
     params = Params()
     params.reset_instance()
-    
 
-if __name__ == "__main__":
-
-    # First run the experiments and generate data
-    results_path = run_experiments()
-
-    # Make figures in the results_path
-    make_figures(results_path)
-    

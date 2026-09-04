@@ -151,6 +151,7 @@ def alternate_elements(x, y):
 
     return new_x, new_y
 
+# Note: Alternate_segments is not used. Swap was removed also.
 def alternate_segments(x, y):
     """
     Alternate list segments.
@@ -182,7 +183,7 @@ def alternate_segments(x, y):
 
             new_y.extend(x[i])
             new_y.extend(y[i])
-    
+
     # Traverse each new list and remove duplicates
     new_x, new_y = np.array(new_x), np.array(new_y)
 
@@ -212,13 +213,9 @@ def preserve_elements(x):
     selected = np.random.choice(len(x), size=k, replace=False)
 
     # Create result list
-    #result = [[] for _ in range(len(x))]
-    #for indx in selected:
-    #    result[indx] = [x[indx]]
-
     result = -np.ones_like(x)
     result[selected] = x[selected]
-    
+
     return result
 
 def preserve_segments(x):
@@ -237,27 +234,10 @@ def preserve_segments(x):
         i, j = selected
         j -= 1
 
-    # The segments are 0 -> i, i+1 -> j, j+1 -> N
-    # Preserve the one at the middle.
-    
-    # Result array
-    #result = [[] for _ in range(3)]
-#
-    #if i == 0:
-    #    result[0] = x[i:j]
-#
-    #elif j == len(x) - 1:
-    #    result[2] = x[i:j]
-#
-    #else:
-    #    # Preserve the middle segment (i+1 -> j)
-    #    result[1] = x[i:j]
-
     result = -np.ones_like(x)
     result[i:j] = x[i:j]
 
     return result
-
 
 def fill_first_occurring(preserved, filler):
     """
@@ -266,7 +246,7 @@ def fill_first_occurring(preserved, filler):
 
     # Make sure x is one list
     preserved = verify_inputs(preserved)
-    
+
     # Make sure y is one list
     filler = verify_inputs(filler)
 
@@ -275,18 +255,16 @@ def fill_first_occurring(preserved, filler):
 
     j = 0
     for i in range(len(preserved)):
-        
-        while preserved[i] == -1:
-            
+        # Note:
+        # x/y can come from arbitrarily nested grammar expressions, so filler is not always
+        # a clean permutation so, if it runs out, we need to leave the rest as -1 and let the
+        # existing is_permutation/test_individual checks to reject the result.
+        while preserved[i] == -1 and j < len(filler):
+
             if filler[j] not in existing_values:
                 preserved[i] = filler[j]
-            
             j += 1
 
-    #for i, element in enumerate(filler):
-    #    if (element not in existing_values) and preserved[i] == -1:
-    #        preserved[i] = element
-    
     return preserved
 
 def order_based(fill_method, preserve_method, x, y):
@@ -299,7 +277,7 @@ def order_based(fill_method, preserve_method, x, y):
 
     # Make sure x is one list
     x = verify_inputs(x)
-    
+
     # Make sure y is one list
     y = verify_inputs(y)
 
@@ -318,9 +296,8 @@ def collapse(x, y=None):
     return x
 
 def verify_inputs(x):
-    
+
     # Make sure x is one list
     if isinstance(x, tuple):
         x = collapse(x[0], x[1])
-    
     return x

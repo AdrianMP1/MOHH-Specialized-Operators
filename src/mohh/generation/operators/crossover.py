@@ -25,6 +25,7 @@ class Crossover(GeneticOperator):
         Computes crossover from the parents list.
 
         @param parents: list with a group of parents.
+        @param genomes_usage: Used-codon count per parent, for choosing valid crossover points.
         :return: List with offspring.
         """
 

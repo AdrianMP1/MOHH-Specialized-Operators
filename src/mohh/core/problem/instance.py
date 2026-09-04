@@ -34,7 +34,6 @@ class Instance():
         # Initial population
         self.population_size :int = population_size
         self.initial_solutions: np.ndarray = None
-        #self.initial_solutions_experiments: dict = {}
 
         # Each instance has a current non-dominated front
         self.fronts: list = []
@@ -97,13 +96,10 @@ class Instance():
         generator = MOSampling(kind=self.solution_type)
         initial_solutions = generator.generate(self.n_variables,
                                                 self.population_size)
-        
-        # Convert real solutions into permutation
-        #initial_solutions_permutation = [self._decode_random_keys(sol) for sol in initial_solutions]
 
         self.initial_solutions = initial_solutions
 
-    
+
     def load_initial_solution(self, file_path: str, permutation: bool = False):
 
         data = []
@@ -155,6 +151,7 @@ class Instance():
 
         @param problem_type: QAP or TSP.
         @param file_name: Instance file path.
+        @param init_solutions_path: Path to a saved initial population, if any.
         """
 
         self.file_path = file_name.replace("\\", "/")
@@ -346,23 +343,9 @@ class QuadraticAssignment(Problem):
             reordered_dist = self.positions[np.ix_(perm, perm)]
             values[i] = np.einsum('kij, ij -> k', self.weights, reordered_dist)
 
-        #for k in range(population_size):
-        #    for m in range(self.k_obj):
-        #        weights = self.weights[m, solutions[k]][:, solutions[k]]
-        #        values[k,m] = np.einsum('ij, ij->', self.positions, weights)
-        
-        #for i in range(population_size):
-        #    for current_objective in range(self.k_obj):
-        #        values[i, current_objective] = self.cost_of_solution(current_objective, solutions[i,:])
-
-        #for i in range(population):
-        #    for current_objective in range(self.k_obj):
-
-        #        values[i,current_objective] = self.cost_of_solution(current_objective, self.decode_random_keys(x[i,:]))
-
         out["F"] = values
 
-    
+
     def cost_of_solution(self, function_indx:int, solution:np.ndarray):
         """
         Return the cost of a solution in its respective function
@@ -376,12 +359,11 @@ class QuadraticAssignment(Problem):
 
         return total_cost // 2
 
+        # -- In other words... --
         #total_cost = 0
         #for i in range(len(solution)):
         #    for j in range(len(solution)):
         #        total_cost += self.weights[function_indx, i, j] * self.positions[solution[i], solution[j]]
-        #
-        #return total_cost//2
 
 
 class MOSampling(Sampling):

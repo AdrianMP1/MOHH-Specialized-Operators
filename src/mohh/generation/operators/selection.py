@@ -1,7 +1,6 @@
 
 import random
 
-from mohh.generation.params import Params
 from mohh.generation.operators.operator import GeneticOperator
 
 
@@ -28,8 +27,6 @@ class Selection(GeneticOperator):
         parents = []
 
         while len(parents) < self.num_parents:
-#        for _ in range(self.num_parents):
-            # Select individual and add it to the parent list
             selected, index = self.run(population, scores)
 
             if index in indices:
@@ -37,33 +34,33 @@ class Selection(GeneticOperator):
 
             indices.append(index)
             parents.append(selected)
-            #parents.append(self.run(population, scores))
-        
+
         return parents, indices
-    
+
     def run(self):
         """
         Execute the operator
 
-        :return: Mutated Individual
+        :return: Selected parent and its index.
         """
 
 
 class Tournament(Selection):
-    
+
     def __init__(self, k: int, num_parents: int=2) -> None:
         """
         Tournament Selection
         @param k: Sample size.
+        @param num_parents: Number of parents to select.
         """
         super().__init__(num_parents=num_parents)
         self.sample_size = k
-    
+
     def run(self, population: list, scores: list):
         """
         @param population: list with individuals.
         @param scores: list with fitness values.
-        
+
         :return: parent
         """
 

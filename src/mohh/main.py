@@ -24,8 +24,6 @@ def make_experiment_path() -> str:
 
     return experiment_path
 
-# TODO: Alternate_segments is not used. Swap was removed also.
-# TODO: fill_first_occurring has a bug. j sometimes is out of bounds.
 def run_generation(experiment_path: str, models: list, overrides: dict = None) -> list:
 
     phenotypes = []

@@ -13,7 +13,7 @@ class SBX_Cross(Crossover):
         super().__init__(2, 2, prob, **kwargs)
 
     def _do(self, problem, X, **kwargs):
-    
+
         # Input shape (n_parents, n_matings, n_var)
         _, n_matings, n_var = X.shape
 
@@ -28,7 +28,7 @@ class SBX_Cross(Crossover):
 
         # Return a numpy array with shape (n_parents, n_matings, n_var)
         return Xp
-    
+
 
 class PMX_Cross(Crossover):
 
@@ -83,10 +83,6 @@ class PMX_Cross(Crossover):
             else:
                 raise(ValueError)
 
-            # Replace -1 values with genes from the other parent
-            #offspring[0, i] = np.where(offspring[0, i] == -1, parent2, offspring[0,i])
-            #offspring[1, i] = np.where(offspring[1, i] == -1, parent1, offspring[1,i])
-
         return offspring
 
 
@@ -99,7 +95,7 @@ class CX_Cross(Crossover):
         n = len(arr)
         arr_set = set(arr)
         return len(arr_set) == n and min(arr) == 0 and max(arr) == n - 1
-    
+
     def _do(self, problem, X, **kwargs):
         # Input shape (n_parents, n_matings, n_var)
         _, n_matings, n_var = X.shape
@@ -130,7 +126,7 @@ class CX_Cross(Crossover):
                 # Break the cycle when starting index is reached
                 if indx == start_indx:
                     break
-            
+
             # Copy the remaining elements from the other parent
             for j in range(size):
                 if offspring[0, i, j] == -1:

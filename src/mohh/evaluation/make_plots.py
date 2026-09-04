@@ -37,9 +37,7 @@ def create_repeated_color_code(n):
 
     # Generate n random colors
     base_colors = np.random.choice(['b', 'g', 'r', 'c', 'm', 'y', 'k'], size=n, replace=False)
-    #base_colors = ["grey", "cadetblue", "limegreen", "orange", "red"]
     base_colors = ["cadetblue", "limegreen", "orange", "red"]
-    #repeated_colors = [color for color in base_colors for _ in range(2)]
     repeated_colors = base_colors * n
 
     return repeated_colors
@@ -48,7 +46,7 @@ def create_repeated_color_code(n):
 def plot_boxplots_grouped(df, instance_name, folder_path,
                          solver_used, boundaries, evals,
                          with_mutation=False, save=False):
-    
+
     columns = df.columns[1:]
     groups = {}
     for col in columns:
@@ -58,37 +56,25 @@ def plot_boxplots_grouped(df, instance_name, folder_path,
             groups[prefix] = []
         groups[prefix].append(col)
 
-    # Get group size
-    #group_size = len(next(iter(groups.values())))
-    #num_pairs = group_size // 2
-    
     num_groups = len(groups)
     color_code = create_repeated_color_code(num_groups)
-    
+
     # Plot box plots per column, grouped with spaces
     plt.figure(figsize=(10,6))
     positions = []
     tick_labels = []
     current_pos = 1
 
-    colors = []
     for prefix, cols in groups.items():
-
-        # Get the colors
-        #colors = colors + color_code
 
         bp = df[cols].boxplot(positions=range(current_pos, current_pos + len(cols)), widths=0.6, patch_artist=True,
                               medianprops=dict(color="k", linewidth=2))
-        
-        #for patch, color in zip(bp.patches, colors):
-        #    patch.set_facecolor(color)
-        
         positions.extend(range(current_pos, current_pos + len(cols)))
         current_pos += len(cols) + 1
 
         cols = [" ".join(col.split("_")[:-1]) for col in cols]
         tick_labels.extend(cols)
-    
+
     for patch, color in zip(bp.patches, color_code):
         patch.set_facecolor(color)
 
@@ -96,7 +82,7 @@ def plot_boxplots_grouped(df, instance_name, folder_path,
 
     mutation_label = "WM" if with_mutation else "NM"
     plt.title(f"{instance_name} - {evals} - {mutation_label} - ({solver_used}) Box plots")
-    
+
     plt.ylim(boundaries)
     plt.ylabel("HV")
 
@@ -107,12 +93,12 @@ def plot_boxplots_grouped(df, instance_name, folder_path,
         figures_folders = os.path.join(folder_path, "Figures")
         mutation_folder = os.path.join(figures_folders, "WithMutation")
         no_mutation_folder = os.path.join(figures_folders, "NoMutation")
-        
+
         # Save figures
         if with_mutation:
             os.makedirs(mutation_folder, exist_ok=True)
             save_name = os.path.join(mutation_folder, instance_name + "_WM" + ".png")
-        
+
         else:
             os.makedirs(no_mutation_folder, exist_ok=True)
             save_name = os.path.join(no_mutation_folder, instance_name + "_NM" + ".png")
@@ -120,7 +106,6 @@ def plot_boxplots_grouped(df, instance_name, folder_path,
         plt.savefig(save_name, dpi=400)
 
     plt.close()
-    #plt.show()
 
 
 def make_figures(folder_path: str):
@@ -157,6 +142,13 @@ def make_figures(folder_path: str):
                 # Get max and min values
                 max_hv = df.iloc[:,1:].max().max()
                 min_hv = df.iloc[:,1:].min().min()
+
+                if not (np.isfinite(min_hv) and np.isfinite(max_hv)):
+                    # Degenerate front upstream (vmax - vmin was zero) left this
+                    # combination's HVs as NaN - skip it instead of poisoning
+                    # the instance's boundaries with it.
+                    print(f"Skipping boundary from {solver}/{evals}/{instance_name}: non-finite HV (degenerate front).")
+                    continue
 
                 # Load actual boundaries
                 new_boundaries = instance_boundaries.get(instance_name, [float("inf"), float("-inf")])
@@ -205,6 +197,13 @@ def make_figures(folder_path: str):
                 df = sort_columns_by_prefix(df)
 
                 instance_name = instance.removesuffix(".csv")
+
+                low, high = instance_boundaries.get(instance_name, [float("inf"), float("-inf")])
+                if not (np.isfinite(low) and np.isfinite(high)):
+                    # Every contribution to this instance's boundaries was
+                    # degenerate (see the skip above) - nothing valid to plot.
+                    print(f"Skipping plots for {solver}/{evals}/{instance_name}: no finite boundaries.")
+                    continue
 
                 # Divide by Mutation and No-Mutation
                 whole_columns = df.columns

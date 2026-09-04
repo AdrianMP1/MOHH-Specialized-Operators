@@ -1,6 +1,5 @@
 
 import os
-import numpy as np
 
 from mohh.evaluation.params import Params
 from mohh.core.problem.instance import Instance as _Instance
@@ -143,6 +142,8 @@ class Instance(_Instance):
 
         @param problem_type: QAP or TSP.
         @param file_name: Instance file path.
+        @param n_experiments: Number of initial populations to create/load, one per experiment.
+        @param init_solutions_path: Path to a saved initial population, if any.
         """
 
         self.file_path = file_name.replace("\\", "/")

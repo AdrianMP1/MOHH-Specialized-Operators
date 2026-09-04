@@ -33,7 +33,7 @@ class MOSolver():
         # Multiobjective operators
         self.crossover = None
         self.mutation = None
-        self.with_mutation = params["MO_MUTATION_BOOL"]
+        #self.with_mutation = params["MO_MUTATION_BOOL"]
 
         self.pop = None
         self.problem = None
@@ -48,7 +48,7 @@ class MOSolver():
         """
 
         # Handle algorithms with no mutation
-        if not(self.with_mutation) and operator_type == "mutation":
+        if operator_type == "mutation" and operator_name == "NullMutation":
             self.mutation = NullMutation()
 
         else:
@@ -57,8 +57,9 @@ class MOSolver():
             operator = find_module(module_name, operator_name, **kwargs)
 
             # Dynamically set the attribute based on operator_type
-            setattr(self, "crossover", operator)
-        
+            operator_type = "crossover" if operator_type == "operator_template" else operator_type
+            setattr(self, operator_type, operator)
+
         return self
 
     def load_instance(self, instance: Instance):
@@ -106,9 +107,6 @@ class MOSolver():
                 mutation=self.mutation
             )
 
-            #self.algorithm.setup(self.problem, termination=("n_gen", self.generations),
-            #                     verbose=False, seed=self.seed)
-        
         elif model_name == "NSGAII":
 
             # Build algorithm
@@ -128,13 +126,13 @@ class MOSolver():
                 crossover=self.crossover,
                 mutation=self.mutation
             )
-        
+
         else:
             raise(ValueError)
-        
+
         self.algorithm.setup(self.problem, termination=("n_gen", self.generations),
                              verbose=False, seed=self.seed)
-        
+
 
     def solve_instance(self):
         """
@@ -151,7 +149,7 @@ class MOSolver():
                 self.algorithm.evaluator.eval(self.problem, pop)
 
             except TypeError as e:
-                
+
                 if "NoneType" in str(e):
                     # Handle the specific problem of SMS-EMOA
                     #print("None Population")

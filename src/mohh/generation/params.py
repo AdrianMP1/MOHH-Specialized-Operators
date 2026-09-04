@@ -2,7 +2,6 @@
 import os
 import random
 
-from time import time
 from datetime import datetime
 from socket import gethostname
 
@@ -70,10 +69,10 @@ hh_params = {
 
 mo_params = {
     # ------------
-    # MOEA MODEL
-    #'MO_MODEL': "MOEAD",
+    # MOEA MODEL - Overwritten by current entry point logic.
+    'MO_MODEL': "MOEAD",
     #'MO_MODEL': "NSGAII",
-    'MO_MODEL': "SMSEMOA",
+    #'MO_MODEL': "SMSEMOA",
 
     # ------------
     # MODEL Parameters
@@ -139,10 +138,6 @@ misc_params = {
 
 params_dict = dict(hh_params, **mo_params, **problem_params, **grammar_params, **misc_params)
 
-def load_params():
-    pass
-
-
 def set_params(experiment_path: str, current_model: str, overrides: dict = None):
 
     # Initialize singleton object with params
@@ -160,8 +155,8 @@ def set_params(experiment_path: str, current_model: str, overrides: dict = None)
     start = datetime.now()
 
     # Set random seed
-    #if params["RANDOM_SEED"] is None:
-    params["RANDOM_SEED"] = int(start.microsecond)
+    if params["RANDOM_SEED"] is None:
+        params["RANDOM_SEED"] = int(start.microsecond)
 
     random.seed(params["RANDOM_SEED"])
 
@@ -177,12 +172,9 @@ def set_params(experiment_path: str, current_model: str, overrides: dict = None)
 
     # Generate save folders
     if params["SAVE"]:
-        save = PopulationSaver(experiment_path, current_model)
+        PopulationSaver(experiment_path, current_model)
         logger = MyLogger().get_logger()
-        logger.info(f"Start")
-
-    # Set Genome operations
-    params["GENOME_OPERATIONS"] = True
+        logger.info("Start")
 
     # Set the generation size (Elitism)
     params["GENERATION_SIZE"] = params["POPULATION_SIZE"] - \

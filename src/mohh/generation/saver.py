@@ -14,7 +14,6 @@ class PopulationSaver():
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super(PopulationSaver, cls).__new__(cls)
-        
         return cls._instance
 
     def __init__(self, experiment_path: str = None,
@@ -150,7 +149,6 @@ class PopulationSaver():
         makedirs(generation_dir, exist_ok=True)
 
         for individual in population.individuals:
-            #individual_id = self._generate_individual_id(individual) 
             individual_id = individual.name
             individual_dir = path.join(self.individuals_dir, individual_id)
 
@@ -163,7 +161,7 @@ class PopulationSaver():
 
                 # Add it to the existing set
                 self.existing_individuals.add(individual_id)
-            
+
                 # Save instance-specific data for this generation
                 for instance_id in individual.pareto_fronts.keys():
 
@@ -176,13 +174,13 @@ class PopulationSaver():
                 offspring_data.append(individual_id)
             else:
                 population_data.append(individual_id)
-        
+
         # TODO: Save hypervolume and fitness per generation?
 
         # If there are offsprings
         if offspring_data:
             self._save_generation_data(offspring_data, generation_dir, offspring=True)
-        
+
         else:
             # Save the generation data (list of individual ID's)
             self._save_generation_data(population_data, generation_dir)
@@ -202,7 +200,7 @@ class PopulationSaver():
         save_path = path.join(individual_dir, f"general_info.{self.file_format}")
         with open(save_path, "w") as file:
             json.dump(individual_info, file, indent=4)
-    
+
         # TODO: Save a tree representation of the individual.
         # Create tree figure.
 
@@ -218,7 +216,7 @@ class PopulationSaver():
         # If real numbers, round them up to 4 decimals.
         if sol_set.dtype == float:
             sol_set = np.round(sol_set, 4)
-        
+
         # Convert into python lists
         front_list = front.tolist()
         sol_set_list = sol_set.tolist()
@@ -244,12 +242,9 @@ class PopulationSaver():
 
         # Save the list of individuals IDs (or names) for the current generation
         population_file_path = path.join(generation_dir, f"{name_dir}.{self.file_format}")
-        
+
         with open(population_file_path, "w") as file:
             json.dump(generation_data, file, indent=4)
-
-    def _consolidate_instance_fronts(self, generation_data, instance_id):
-        pass
 
     @classmethod
     def reset_instance(cls):
@@ -267,15 +262,15 @@ class MyLogger():
         if cls._instance is None:
             # Create a new instance
             cls._instance = super(MyLogger, cls).__new__(cls)
-        
+
         return cls._instance
-    
+
     def __init__(self):
 
         # Check if logger has already been initialized
         if hasattr(self, "logger"):
             return
-        
+
         # Load parameters for paths.
         params = Params()
         experiment_path = params["FILE_PATH"]
@@ -289,23 +284,17 @@ class MyLogger():
         file_handler = logging.FileHandler(log_path)
         file_handler.setLevel(logging.INFO)
 
-        # Create a console handler to print to the console
-        #console_handler = logging.StreamHandler()
-        #console_handler.setLevel(logging.INFO)
-
         # Define the format
         formatter = logging.Formatter("%(asctime)s :: %(message)s")
         file_handler.setFormatter(formatter)
-        #console_handler.setFormatter(formatter)
 
         # Add handlers
         self.logger.addHandler(file_handler)
-        #self.logger.addHandler(console_handler)
-    
+
     def get_logger(self) -> logging.Logger:
         # Access the logger instance
         return self.logger
-    
+
     def close_logger(self) -> None:
         # Close file
         handlers = self.logger.handlers[:]

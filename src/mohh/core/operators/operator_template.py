@@ -11,6 +11,9 @@ class HH_Operator(Crossover):
         """
         @param operator: Phenotype operator.
         @param solution_type: Natural or Real.
+        @param n_parents: Number of parents per mating.
+        @param n_offsprings: Number of offspring per mating.
+        @param prob: Crossover probability.
         """
         super().__init__(n_parents, n_offsprings, prob, **kwargs)
 
@@ -19,7 +22,7 @@ class HH_Operator(Crossover):
 
         # Work with natural or real numbers
         self.solution_type = solution_type.lower()
-    
+
     def _do(self, problem, X, **kwargs):
         """
         Apply the operator following Pymoo documentation.
@@ -43,17 +46,17 @@ class HH_Operator(Crossover):
             #else:
             #    if not(self.is_permutation(child)):
             #        print("OPERATORS WITH INVALID SOLUTIONS")
-                    
+
             if isinstance(child, tuple):
                 Y[0, k], Y[1, k] = child[0], child[1]
 
             elif self.solution_type == "real":
                 Y[0, k], Y[1, k] = child, 1 - child
-            
+
             else:
                 Y[0, k], Y[1, k] = child, child[::-1]
         return Y
-    
+
     def is_permutation(self, array: np.ndarray):
         """
         Check if the array has the correct length

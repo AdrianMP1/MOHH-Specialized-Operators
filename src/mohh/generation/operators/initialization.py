@@ -1,7 +1,6 @@
 
 import random
 
-from mohh.core.representation.tree import Tree
 from mohh.generation.representation.population import Individual
 
 from mohh.generation.params import Params
@@ -55,7 +54,7 @@ class Rvd(Initialization):
         phenotypes = set()
 
         while len(population) < size:
-            ind = Individual(sample_genome(), None)
+            ind = Individual(sample_genome())
             if ind.invalid or ind.phenotype in phenotypes:
                 tries += 1
                 if tries > max_tries:

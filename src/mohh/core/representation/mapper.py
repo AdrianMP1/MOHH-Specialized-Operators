@@ -3,55 +3,30 @@ import numpy as np
 
 from mohh.core.params import Params
 from collections import deque
-from mohh.core.representation.tree import Tree
 
 
-def mapper(genome: list, tree: Tree):
+def mapper(genome: list):
     """
-    
+    Maps a genome into a phenotype, via the grammar.
+
+    @param genome: Individual's genome.
     """
 
-    # Load parameters
-    params = Params()
+    # Make a copy
+    genome = list(genome)
 
-    # One or other must be passed, not both.
-    assert(genome or tree)
-    assert not (genome and tree)
+    phenotype, genome, tree, nodes, invalid, depth, \
+    used_codons = map_ind_from_genome(genome)
 
-    if genome:
-        # From a genome, map the individual
-
-        # Make a copy
-        genome = list(genome)
-
-        if params["GENOME_OPERATIONS"]:
-
-            phenotype, genome, tree, nodes, invalid, depth, \
-            used_codons = map_ind_from_genome(genome)
-        
-        else:
-            # Build a tree
-            #phenotype, genome, tree, nodes, invalid, depth, \
-            #used_codons = map_tree_from_genome(genome)
-            raise(ValueError("Build trees is not implemented yet."))
-    else:
-        # From the tree extract information.
-
-        genome, output, invalid, depth, \
-        nodes = tree.get_tree_info(params["BNF_GRAMMAR"].non_terminals.keys(),
-                                   [], [])
-        
-        used_codons, phenotype = len(genome), "".join(output)
-    
     if invalid:
         # Set values for invalid individuals
         phenotype, nodes, depth, used_codons = None, np.nan, np.nan, np.nan
-    
+
     return phenotype, genome, tree, nodes, invalid, depth, used_codons
 
 def map_ind_from_genome(genome: list) -> tuple:
     """
-    Code taken from PonyGE2.
+    Code adapted from PonyGE2 (github.com/PonyGE/PonyGE2).
 
     Making use of the genome, create an individual.
     """

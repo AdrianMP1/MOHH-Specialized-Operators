@@ -12,6 +12,8 @@ params = Params()
 class Grammar(object):
     """
     Parser for Backus-Naur Form.
+
+    Adapted from PonyGE2 (github.com/PonyGE/PonyGE2).
     """
 
     def __init__(self, file_name):
@@ -429,7 +431,6 @@ class Grammar(object):
         possible combinations at the specific given depth (if there are no
         possible permutations for a given depth, will return 0).
 
-        :param ramps:
         :return: Nothing.
         """
 

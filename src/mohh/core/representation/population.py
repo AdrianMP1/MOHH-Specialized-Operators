@@ -1,6 +1,4 @@
 
-import numpy as np
-
 from mohh.core.params import Params
 from mohh.core.representation.mapper import mapper
 
@@ -122,12 +120,11 @@ class Population():
 
 class Individual():
 
-    def __init__(self, genome: list, tree: object, map_required: bool=True) -> None:
+    def __init__(self, genome: list, map_required: bool=True) -> None:
         """
         Create a new individual.
 
         @param genome: Individual's genome.
-        @param tree: Derivation tree.
         @param map_required: Bool to indicate if it needs to be mapped first.
         """
 
@@ -137,10 +134,10 @@ class Individual():
         if map_required:
             # Map the individual
             self.phenotype, self.genome, self.tree, self.nodes, self.invalid, \
-            self.depth, self.used_codons = mapper(genome, tree)
+            self.depth, self.used_codons = mapper(genome)
 
         else:
-            self.genome, self.tree = genome, tree
+            self.genome, self.tree = genome, None
         
         # Add individual information
         self.name = None

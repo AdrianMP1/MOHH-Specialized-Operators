@@ -20,12 +20,12 @@ from mohh.core.utilities.algorithm.MO import compute_hypervolume
 from mohh.core.utilities.algorithm.MO import non_dominated_sorting_vectorized
 from mohh.generation.utilities.algorithm.HH_auxiliars import compute_rank
 from mohh.generation.utilities.algorithm.HH_auxiliars import test_individual
-import numpy as np
-import matplotlib.pyplot as plt
+
+
 class HyperHeuristic():
 
     def __init__(self) -> None:
-        
+
         # Load General Parameters
         params = Params()
 
@@ -42,11 +42,9 @@ class HyperHeuristic():
         self.selection = None
         self.crossover = None
         self.mutation = None
-        self.replacement = None
 
         # Population
         self.population = None
-        self.already_seen = set()
         self.num_offsprings = params["GENERATION_SIZE"]
 
         # Instances parameters
@@ -92,7 +90,7 @@ class HyperHeuristic():
         if type(self.mo_population_size) == int:
             # Transform it into a list with repeated values
             self.mo_population_size = [self.mo_population_size]*len(instance_paths)
-        
+
         for indx, instance_path in enumerate(instance_paths):
             # Initiate instance object
             instance = Instance(self.mo_population_size[indx], self.solution_type)
@@ -114,7 +112,7 @@ class HyperHeuristic():
         # Make a progress bar
         pbar = tqdm(self.population.non_evaluated(), desc="Evaluating...",
                     bar_format="{l_bar}{bar:20}{r_bar}", leave=True)
-        
+
         # Evaluate non-evaluated individuals
         for individual in pbar:
 
@@ -127,7 +125,7 @@ class HyperHeuristic():
             solver.load_operator("mutation", "NullMutation")
 
             for instance in self.instances:
-                
+
                 # Send the instance to the MO solver
                 solver.load_instance(instance)
 
@@ -152,7 +150,7 @@ class HyperHeuristic():
                 # Add front to the consolidated
                 instance.non_dominated_front = \
                     instance.non_dominated_front.union([tuple(element) for element in pareto_front.tolist()])
-                
+
         # Close progress bar
         pbar.close()
 
@@ -161,7 +159,7 @@ class HyperHeuristic():
 
         # Add it to the log file
         logger.info(f"Evaluation took: {total_time} seconds")
-    
+
     def compute_metrics(self):
         """
         Compute an indicator metric and rank the individuals.
@@ -180,8 +178,8 @@ class HyperHeuristic():
         # Display times
         sorting_text = ", ".join([f"{i:05.1f} min" for i in instance_sorting_time])
         hv_text = ", ".join([f"{i:05.1f} min" for i in instance_hv_time])
-        print(f"\nSorting: ", sorting_text)
-        print(f"Hypervolumes: ", hv_text)
+        print("\nSorting: ", sorting_text)
+        print("Hypervolumes: ", hv_text)
 
         # Make a progress bar
         pbar = tqdm(self.instances, desc="Computing metrics...",
@@ -189,19 +187,12 @@ class HyperHeuristic():
 
         # For each instance...
         for i, instance in enumerate(pbar):
-                
+
             # Instance name
             instance_name = instance.instance_name
 
             # Measure non dominated sorting time
             sorting_time_init = time.time()
-
-            # If instance already has fronts...
-            #if instance.fronts:
-                
-            #    # Merge all fronts with non-dominated front
-            #    for front in instance.fronts:
-            #        instance.non_dominated_front = instance.non_dominated_front.union(front)
 
             # Compute non-dominated-sorting on each instance non-dominated-front.    
             instance.fronts = non_dominated_sorting_vectorized(instance.non_dominated_front)
@@ -232,7 +223,7 @@ class HyperHeuristic():
                 # Compute hypervolume to the new individual.
                 individual.hypervolumes[instance_name] = compute_hypervolume(instance.nadir_point,
                                                             individual.pareto_fronts[instance_name])
-            
+
             # Get total time Hypervolume took [min]
             hv_time = (time.time() - hv_time_init) / 60
 
@@ -286,7 +277,7 @@ class HyperHeuristic():
         Compute an evolutionary step.
         Selection, Crossover, Mutation.
         """
-        
+
         # Extract current genomes from population
         genomes = copy.deepcopy(self.population.get_genomes())
 
@@ -308,28 +299,21 @@ class HyperHeuristic():
 
             children = self.crossover(parents, relevant_genomes)
             children = self.mutation(children)
-            
+
             for child in children:
                 # Create new individual.
-                ind = Individual(child, None)
-                
+                ind = Individual(child)
+
                 # Verify if individual is invalid; or repeated
                 if ind.invalid or ind.phenotype in phenotypes:
                     continue
-                
+
                 # Verify if it outputs valid values.
                 elif test_individual(ind.phenotype, self.solution_type) == False:
                     continue
 
-                # Verify individual hasn't already be created
-                #elif ind.phenotype in self.already_seen:
-                #    continue
-                
                 # Offspring is valid and outputs admisible results.
                 offspring.append(ind)
-
-                # Add it to already seen
-                #self.already_seen.add(ind.phenotype)
 
                 # Hard constraint, don't exceed num_offsprings.
                 if len(offspring) == self.num_offsprings:
@@ -343,10 +327,10 @@ class HyperHeuristic():
 
             # Set individual name.
             child.name = f"Individual_{self.population.num_individuals_created+1:06d}"
-            
+
             # Increase counter.
             self.population.num_individuals_created += 1
-        
+
         # Append the new generation to the current one.
         self.population.individuals.extend(offspring)
 
@@ -354,9 +338,7 @@ class HyperHeuristic():
         """
         Apply replacement with elitism.
         """
-        # Get the individuals list
-        #individuals = self.population.individuals
-        
+
         # Get the current population
         population = self.population.get_population()
 
@@ -395,28 +377,13 @@ class HyperHeuristic():
         for individual in self.population.individuals:
             individual.is_offspring = False
 
-        # Update consolidated front # TODO: Unnecesary.
-        #for instance in self.instances:
-#
-        #    # Instance name
-        #    instance_name = instance.instance_name
-#
-        #    # Reset non dominated front
-        #    instance.non_dominated_front = set()
-#
-        #    for individual in self.population.individuals:
-        #        # Add front to the consolidated
-        #        pareto_front = individual.pareto_fronts[instance_name]
-        #        instance.non_dominated_front = \
-        #            instance.non_dominated_front.union( [tuple(element) for element in pareto_front.tolist()] )
-
         return scores
 
     def run(self):
         """
         Execute the generation hyperheuristic.
         """
-        
+
         # Load population saver
         population_saver = PopulationSaver()
 
@@ -426,21 +393,36 @@ class HyperHeuristic():
 
         logger.info(f"MO-Solver: {self.mo_model_name}")
 
+        # Show a summary of the run's key parameters
+        params = Params()
+        mo_pop_sizes = self.mo_population_size if isinstance(self.mo_population_size, list) else [self.mo_population_size]
+        mo_pop_display = mo_pop_sizes[0] if len(set(mo_pop_sizes)) == 1 else mo_pop_sizes
+
+        print("\n" + "-" * 40)
+        print("Starting Generation")
+        print("-" * 40)
+        print(f"MOEA model:         {self.mo_model_name}")
+        print(f"Population size:    {self.population_size}")
+        print(f"Generations:        {self.num_generations}")
+        print(f"Elite size:         {params['ELITE_SIZE']}")
+        print(f"MO population size: {mo_pop_display}")
+        print(f"MO generations:     {params['MO_GENERATIONS']}")
+        print("-" * 40)
+
         # Start timer
         start_time = time.time()
 
+        print("\n" + "-" * 40)
         print("Generation 0.")
+        print("-" * 40)
         print("Start initial population.")
         logger.info(f"Generation 0/{self.num_generations}")
 
         # Create initial population.
         self.population.initialize_population(self.population_size)
-        
-        # Store phenotypes in memory.
-        #self.already_seen = self.already_seen.union(self.population.get_phenotypes())
 
         print("Evaluating initial population...")
-        
+
         # Evaluate the initial population and compute metrics.
         self.evaluation_step()
         scores = self.compute_metrics()
@@ -449,28 +431,12 @@ class HyperHeuristic():
         population_saver.save_population(self.population, generation=0)
         population_saver.save_consolidated_fronts(self.instances, generation=0)
 
-        # TODO: DELETE THIS
-        fig, ax = plt.subplots(1,1)
-
         for gen in range(1, self.num_generations + 1):
 
-            print(f"\nGeneration {gen}/{self.num_generations}")
+            print("\n" + "-" * 40)
+            print(f"Generation {gen}/{self.num_generations}")
+            print("-" * 40)
             logger.info(f"Generation {gen}/{self.num_generations}")
-
-            # TODO: DELETE THIS
-            instance_1 = self.instances[0]
-            instance_name = instance_1.instance_name
-            non_dom = np.array(list(instance_1.non_dominated_front))
-            nadir_p = instance_1.nadir_point
-
-            plt.cla()
-            ax.scatter(non_dom[:,0], non_dom[:,1], s=10, c="k")
-            ax.scatter(nadir_p[0], nadir_p[1], s=10, c="r")
-            for indv in self.population.get_population():
-                frt = indv.pareto_fronts[instance_name]
-                ax.scatter(frt[:,0], frt[:,1], s=1, c="b")
-            
-            plt.pause(0.1)
 
             # Generate offsprings
             self.evolutionary_step(scores)
@@ -501,10 +467,10 @@ class HyperHeuristic():
 
             # Save new population in disk
             population_saver.save_population(self.population, generation=gen)
-            
+
             print(f"\nBest Individual: {self.population.individuals[0].phenotype}")
             logger.info(f"Best Individual: {self.population.individuals[0].phenotype}")
-        plt.close("all")
+
         # Print total time
         end = time.time()
         seconds = round(end - start_time, 2)

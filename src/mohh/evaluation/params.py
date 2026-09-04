@@ -2,7 +2,6 @@
 import os
 import random
 
-from time import time
 from datetime import datetime
 from socket import gethostname
 
@@ -15,8 +14,7 @@ machine_name = hostname[0]
 mo_params = {
 
     # Solvers to benchmark
-    #'SOLVERS': ["MOEAD", "NSGAII", "SMSEMOA"],
-    'SOLVERS': ["MOEAD"],
+    'SOLVERS': ["MOEAD", "NSGAII", "SMSEMOA"],
 
     # Number of repeated experiments per instance/combination
     'N_EXPERIMENTS': 11,
@@ -109,10 +107,6 @@ misc_params = {
 
 params_dict = dict(mo_params, **problem_params, **grammar_params, **misc_params)
 
-def load_params():
-    pass
-
-
 def set_params(overrides: dict = None):
 
     # Initialize singleton object with params
@@ -124,7 +118,6 @@ def set_params(overrides: dict = None):
 
     # Load Grammar & Saver
     from mohh.core.representation import grammar
-    #from saver import PopulationSaver, MyLogger
 
     # Get actual time
     start = datetime.now()
@@ -142,18 +135,9 @@ def set_params(overrides: dict = None):
                                      str(start.month),
                                      str(start.day), hm,
                                      str(params["RANDOM_SEED"])])
-    
+
     print("\nStart:\t", start, "\n")
 
-    # Generate save folders
-    #if params["SAVE"]:
-        #save = PopulationSaver()
-        #logger = MyLogger().get_logger()
-        #logger.info(f"Start")
-
-    # Set Genome operations
-    params["GENOME_OPERATIONS"] = True
-    
     # Parse grammar file and set grammar class
     params["BNF_GRAMMAR"] = grammar.Grammar(
         os.path.join(project_root(), "grammars", params["GRAMMAR_FILE"])

@@ -59,7 +59,6 @@ class MOSolver(ABC):
         # Multiobjective operators
         self.crossover = None
         self.mutation = None
-        #self.with_mutation = params["MO_MUTATION_BOOL"]
 
         self.pop = None
         self.problem = None
@@ -171,24 +170,17 @@ class MOEA_Decomposition(MOSolver):
 
         # Extract callback data
         snapshots_data = self.algorithm.callback.populations
-        
-        # Extract results
-        results = self.algorithm.result()
-        pareto_set = results.X
-        pareto_front = results.F
 
-        # Get the number of individuals weakly non-dominated
-        number_weak_non_dominated = len(pareto_set)
-
-        # Get the number of truly unique individuals
-        number_unique_results = len(np.unique(pareto_set, axis=0))
-
-        # Filter by unique elements in the pareto front
-        pareto_front, mask = np.unique(pareto_front, return_index=True, axis=0)
-        pareto_set = pareto_set[mask]
-
-        # Get the number of unique individuals from pareto front
-        number_unique_pareto_front = len(pareto_front)
+        # Legacy: this used to be the return value, before MyCallback/snapshots_data.
+        # Kept here in case per-run pareto set/front stats are needed again.
+        #results = self.algorithm.result()
+        #pareto_set = results.X
+        #pareto_front = results.F
+        #number_weak_non_dominated = len(pareto_set)
+        #number_unique_results = len(np.unique(pareto_set, axis=0))
+        #pareto_front, mask = np.unique(pareto_front, return_index=True, axis=0)
+        #pareto_set = pareto_set[mask]
+        #number_unique_pareto_front = len(pareto_front)
 
         return snapshots_data
 
@@ -196,13 +188,16 @@ class MOEA_Decomposition(MOSolver):
 class NSGAII(MOSolver):
     def __init__(self) -> None:
         super().__init__()
-    
+
     def start_model(self, seed):
         """
         Start the MOEA.
-        
-        @param model_name: MOEA solver name.
+
+        @param seed: Random seed.
         """
+
+        # Load parameters
+        params = Params()
 
         # Build algorithm
         self.algorithm = NSGA2(
@@ -216,8 +211,9 @@ class NSGAII(MOSolver):
         # Survival RankandCrowding
 
         self.algorithm.setup(self.problem, termination=("n_gen", self.generations),
-                             verbose=False, seed=seed)
-    
+                             verbose=False, seed=seed,
+                             callback=MyCallback(self.pop_size, params["EVAL_BUDGETS"]))
+
     def solve_instance(self):
         """
         MOEA execution
@@ -234,38 +230,25 @@ class NSGAII(MOSolver):
             # Return the evaluated individuals
             self.algorithm.tell(infills=pop)
 
-        # Extract results
-        results = self.algorithm.result()
-        pareto_set = results.X
-        pareto_front = results.F
+        # Extract callback data
+        snapshots_data = self.algorithm.callback.populations
 
-        # Get the number of individuals weakly non-dominated
-        number_weak_non_dominated = len(pareto_set)
-
-        # Get the number of truly unique individuals
-        number_unique_results = len(np.unique(pareto_set, axis=0))
-
-        # Filter by unique elements in the pareto front
-        pareto_front, mask = np.unique(pareto_front, return_index=True, axis=0)
-        pareto_set = pareto_set[mask]
-
-        # Get the number of unique individuals from pareto front
-        number_unique_pareto_front = len(pareto_front)
-
-        return (pareto_set, pareto_front, number_weak_non_dominated,
-            number_unique_results, number_unique_pareto_front)
+        return snapshots_data
 
 
 class SMS_MOEA(MOSolver):
     def __init__(self) -> None:
         super().__init__()
-    
+
     def start_model(self, seed):
         """
         Start the MOEA.
-        
-        @param model_name: MOEA solver name.
+
+        @param seed: Random seed.
         """
+
+        # Load parameters
+        params = Params()
 
         # Build algorithm
         self.algorithm = SMSEMOA(
@@ -279,8 +262,9 @@ class SMS_MOEA(MOSolver):
         # Survival LeastHypervolumeContributionSurvival
 
         self.algorithm.setup(self.problem, termination=("n_gen", self.generations),
-                             verbose=False, seed=seed)
-    
+                             verbose=False, seed=seed,
+                             callback=MyCallback(self.pop_size, params["EVAL_BUDGETS"]))
+
     def solve_instance(self):
         """
         MOEA execution
@@ -297,26 +281,8 @@ class SMS_MOEA(MOSolver):
             # Return the evaluated individuals
             self.algorithm.tell(infills=pop)
 
-        # Extract results
-        results = self.algorithm.result()
-        pareto_set = results.X
-        pareto_front = results.F
+        # Extract callback data
+        snapshots_data = self.algorithm.callback.populations
 
-        # Get the number of individuals weakly non-dominated
-        number_weak_non_dominated = len(pareto_set)
+        return snapshots_data
 
-        # Get the number of truly unique individuals
-        number_unique_results = len(np.unique(pareto_set, axis=0))
-
-        # Filter by unique elements in the pareto front
-        pareto_front, mask = np.unique(pareto_front, return_index=True, axis=0)
-        pareto_set = pareto_set[mask]
-
-        # Get the number of unique individuals from pareto front
-        number_unique_pareto_front = len(pareto_front)
-
-        return (pareto_set, pareto_front, number_weak_non_dominated,
-            number_unique_results, number_unique_pareto_front)
-
-class IBEA():
-    pass

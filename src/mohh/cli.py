@@ -2,7 +2,7 @@
 import argparse
 
 from mohh.main import make_experiment_path, run_generation
-from mohh.run_evaluation import extract_operators
+from mohh.run_evaluation import discover_models, extract_operators
 from mohh.evaluation.main import execute_experiments
 from mohh.evaluation.params import params_dict as evaluation_params_dict
 
@@ -33,9 +33,9 @@ def _parse_eval_budgets(value: str) -> dict:
 
     return budgets
 
-def _evaluation_overrides(args, solvers: list) -> dict:
+def _evaluation_overrides(args, solvers: list, models: list) -> dict:
 
-    overrides = {"SOLVERS": solvers}
+    overrides = {"SOLVERS": solvers, "MODELS": models}
 
     if args.mo_population_size is not None:
         overrides["MO_POPULATION_SIZE"] = args.mo_population_size
@@ -57,6 +57,11 @@ def _add_eval_budgets_arg(parser: argparse.ArgumentParser):
 
     parser.add_argument("--eval-budgets", default=None,
                         help="Comma-separated label:evaluations pairs, e.g. 10k:10500,30k:31500,50k:52500.")
+
+def _add_solvers_arg(parser: argparse.ArgumentParser):
+
+    parser.add_argument("--solvers", default=None,
+                        help="Comma-separated MOEAs to benchmark with (default: from params).")
 
 def generate():
 
@@ -80,16 +85,19 @@ def evaluate():
 
     parser = argparse.ArgumentParser(description="Benchmark discovered operators against unseen instances.")
     parser.add_argument("experiment_path", help="Path to an experiment folder produced by mohh-generate.")
-    parser.add_argument("--solvers", default=None, help="Comma-separated solvers (default: from params).")
+    parser.add_argument("--models", default=None,
+                        help="Comma-separated generation models to pull operators from (default: auto-detect from experiment_path).")
+    _add_solvers_arg(parser)
     parser.add_argument("--n-experiments", type=int, default=None)
     _add_mo_args(parser)
     _add_eval_budgets_arg(parser)
     args = parser.parse_args()
 
+    models = args.models.split(",") if args.models else discover_models(args.experiment_path)
     solvers = args.solvers.split(",") if args.solvers else evaluation_params_dict["SOLVERS"]
-    overrides = _evaluation_overrides(args, solvers)
+    overrides = _evaluation_overrides(args, solvers, models)
 
-    operators = extract_operators(args.experiment_path, solvers)
+    operators = extract_operators(args.experiment_path, models)
     execute_experiments(args.experiment_path, "", operators, overrides)
 
 def run_full():
@@ -104,6 +112,7 @@ def run_full():
     parser.add_argument("--n-experiments", type=int, default=None)
     _add_mo_args(parser)
     _add_eval_budgets_arg(parser)
+    _add_solvers_arg(parser)
     args = parser.parse_args()
 
     if not args.full:
@@ -111,7 +120,8 @@ def run_full():
 
     models = args.models.split(",")
     gen_overrides = _generation_overrides(args)
-    eval_overrides = _evaluation_overrides(args, models)
+    solvers = args.solvers.split(",") if args.solvers else evaluation_params_dict["SOLVERS"]
+    eval_overrides = _evaluation_overrides(args, solvers, models)
 
     experiment_path = make_experiment_path()
     phenotypes = run_generation(experiment_path, models, gen_overrides)

@@ -12,18 +12,17 @@ from itertools import product
 
 from mohh.evaluation.params import Params, set_params
 from mohh.core.utilities.instance_utils import instance_paths
-from mohh.core.utilities.algorithm.MO import compute_nadir_point, compute_hypervolume, non_dominated_sorting_vectorized
+from mohh.core.utilities.algorithm.MO import compute_hypervolume, non_dominated_sorting_vectorized
 
 from mohh.evaluation.problem.instance import Instance
 
-from mohh.evaluation.algorithms import MOEA_Decomposition, NSGAII, SMS_MOEA, IBEA
+from mohh.evaluation.algorithms import MOEA_Decomposition, NSGAII, SMS_MOEA
 
 solution_type = "Natural"
 
 # Load an already initial population?
 initial_population_path = ""
 
-#all_mutation = ["NullMutation", "PM_Mutation"]
 all_mutation = ["NullMutation", "Swap_Mutation"]
 
 def make_experiment_paths(experiment_path: list[str]):
@@ -40,7 +39,7 @@ def make_experiment_paths(experiment_path: list[str]):
         solver_path = os.path.join(dir_path, solver)
 
         os.makedirs(solver_path, exist_ok=True)
-    
+
     initial_solutions_path = os.path.join(dir_path, "initial_solutions")
     os.makedirs(initial_solutions_path, exist_ok=True)
 
@@ -53,9 +52,9 @@ def generate_incremental_seeds(seeds_number: int, instance_name: str) -> list:
     # Get the initial time-based seed
     start = datetime.now()
     seed = int(start.microsecond)  # Use microsecond as the base seed
-    
+
     seeds = [seed]  # Initialize the list with the first seed
-    
+
     for i in range(1, seeds_number):
         # Add a random increment (e.g., between 1 and 1000) to the previous seed
         increment = random.randint(1, 1000)
@@ -69,11 +68,11 @@ def generate_incremental_seeds(seeds_number: int, instance_name: str) -> list:
             with open(os.path.join(initial_population_path, "real", instance_name, "seeds.txt"), "r") as f:
                 for line in f:
                     old_seeds.append(int(line))
-            
+
             seeds = old_seeds
         except:
             pass
-    
+
     return seeds
 
 
@@ -81,15 +80,15 @@ def save_seeds(seeds: list, folder_path: str, instance_name: str):
 
     real_path = os.path.join(folder_path, "real", instance_name, "seeds.txt")
     permutation_path = os.path.join(folder_path, "permutation", instance_name, "seeds.txt")
-    
+
     with open(real_path, "w") as f:
-        
+
         for seed in seeds:
             f.write(str(seed) + "\n")
         f.close()
 
     with open(permutation_path, "w") as f:
-        
+
         for seed in seeds:
             f.write(str(seed) + "\n")
         f.close()
@@ -120,34 +119,31 @@ def get_combinations(all_crossover):
     # Sort combined list
     sorted_combinations = sorted(all_combinations, key = lambda x: (x[2], x[0], x[4], x[3], x[1]))
 
-    #combinations = [(op[0], op[1], mutation, op[3], op[2]) for op, mutation in product(all_crossover, all_mutation)]
-
-    #sorted_combinations = sorted(combinations, key = lambda x: (x[2], x[0], x[4], x[3], x[1]))
     return sorted_combinations
 
 
 def build_solver(solver_name, cross_type, crossover, mutation):
 
     params = Params()
-    
+
     if solver_name == "MOEAD":
         solver = MOEA_Decomposition()
         cross_prob = params["MOEAD_CROSSOVER_PROBABILITY"]
         mutation_prob = params["MOEAD_MUTATION_PROBABILITY"]
-    
+
     elif solver_name == "NSGAII":
         solver = NSGAII()
         cross_prob = params["NSGA_CROSSOVER_PROBABILITY"]
         mutation_prob = params["NSGA_MUTATION_PROBABILITY"]
-                
+
     elif solver_name == "SMSEMOA":
         solver = SMS_MOEA()
         cross_prob = params["SMS_CROSSOVER_PROBABILITY"]
         mutation_prob = params["SMS_MUTATION_PROBABILITY"]
-    
+
     else:
-        raise(ValueError)
-    
+        raise ValueError(f"Unknown solver: {solver_name}")
+
     # LOAD CROSSOVER
     if cross_type == "operator_template":
         solver.load_operator(cross_type, "HH_Operator",
@@ -156,7 +152,7 @@ def build_solver(solver_name, cross_type, crossover, mutation):
                              prob=cross_prob)
     else:
         solver.load_operator(cross_type, crossover, prob=cross_prob)
-    
+
     # LOAD MUTATION
     solver.load_operator("mutation", mutation, prob=mutation_prob)
 
@@ -167,7 +163,7 @@ def normalize(data: np.ndarray):
 
     if data.shape[1] > 1:
         return (data - np.min(data, axis=0)) / (np.max(data, axis=0) - np.min(data, axis=0))
-    
+
     else:
         return (data - min(data)) / (max(data) - min(data))
 
@@ -180,10 +176,10 @@ def normalize_values(data: np.ndarray, vmin: float, vmax: float):
 def write_front(front: np.ndarray, file_path: str):
     """
     Take a 2D numpy array and write it in disk
-    
+
     Params
     """
-    
+
     # Get the shape of the array
     N, M = front.shape
 
@@ -198,7 +194,7 @@ def write_front(front: np.ndarray, file_path: str):
             # Format numbers to scientific notation
             formatted_point = " ".join(f"{num:1.6e}" for num in row)
             file.write(f"{formatted_point}\n")
-    
+
         file.close()
 
 
@@ -210,8 +206,24 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
     # Load parameters
     params = Params()
     solver_names = params["SOLVERS"]
+
+    # Generation models that produced `operators`, in the same order -
+    # separate from SOLVERS (which MOEAs to benchmark with).
+    model_names = params["MODELS"] or solver_names
+
     n_experiments = params["N_EXPERIMENTS"]
     eval_labels = list(params["EVAL_BUDGETS"].keys())
+
+    print("\n" + "-" * 40)
+    print("Starting Evaluation")
+    print("-" * 40)
+    print(f"Solvers:            {solver_names}")
+    print(f"Models:             {model_names}")
+    print(f"N experiments:      {n_experiments}")
+    print(f"MO population size: {params['MO_POPULATION_SIZE']}")
+    print(f"MO generations:     {params['MO_GENERATIONS']}")
+    print(f"Eval budgets:       {params['EVAL_BUDGETS']}")
+    print("-" * 40)
 
     # Set operators
     # Best, middle, worst
@@ -220,13 +232,12 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
 
     for i in range(0, len(operators), 3):
 
-        solver_name = solver_names[i // 3]
+        model_name = model_names[i // 3]
 
-        all_crossover.append(("operator_template", operators[i],   solver_name, "Best"))
-        all_crossover.append(("operator_template", operators[i+1], solver_name, "Middle"))
-        all_crossover.append(("operator_template", operators[i+2], solver_name, "Worst"))
+        all_crossover.append(("operator_template", operators[i],   model_name, "Best"))
+        all_crossover.append(("operator_template", operators[i+1], model_name, "Middle"))
+        all_crossover.append(("operator_template", operators[i+2], model_name, "Worst"))
 
-    #all_crossover.append(("crossover", "SBX_Cross", "None", "Standard"))
     all_crossover.append(("crossover", "PMX_Cross", "None", "Standard"))
     all_crossover.append(("crossover", "CX_Cross", "None", "Standard"))
 
@@ -251,6 +262,10 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
         instance_name = instance_path.replace("\\", "/").split("/")[-1]
         instance_name = instance_name.removesuffix(".txt")
 
+        print("\n" + "-" * 40)
+        print(f"Instance: {instance_name}")
+        print("-" * 40)
+
         # Load problem & Create initial population for MO for all experiments
         instance.load_problem(params["PROBLEM_NAME"], instance_path, n_experiments, initial_population_path)
 
@@ -273,7 +288,6 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
             combination_name = combination[3]
             solver_used = combination[4]
 
-            #kind = "real" if cross_operator != "PMX_Cross" else "permutation"
             kind = "permutation"
 
             for solver_name in solver_names:
@@ -285,11 +299,10 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
                 fronts_exp_level = {label: {} for label in eval_labels}
 
                 # Perform N experiments with this configuration
-                with_crossover = "Own" if cross_type == "operator_template" else "SBX"
                 with_mutation = "NM" if mutation_operator == "NullMutation" else "WM"
 
                 for i in tqdm(range(1, n_experiments+1), desc=f"{solver_used} {combination_name} {with_mutation} {solver_name}"):
-                    
+
                     # Set initial population for MO
                     instance.set_initial_solutions(experiment=i, kind=kind)
 
@@ -338,7 +351,7 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
 
                 #* At this point, we have N pareto fronts for that model
                 #* with those operators in that instance.
-            
+
             #* Here we end with M (number of models) * N pareto fronts
             #* for all models with those operators.
 
@@ -373,6 +386,8 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
             best_front = non_dominated_sorting_vectorized(consolidated[label])[0]
             best_front = comprobate(best_front, consolidated[label])
 
+            # Note: If vmax - vmin is zero, a degenerate front or column front was reached.
+            # The front and dataframe will be invalidated due to NaNs.
             min_val, max_val = np.min(best_front, axis=0), np.max(best_front, axis=0)
             boundaries[label] = [min_val, max_val]
 
@@ -380,7 +395,7 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
             best_fronts_norm[label] = normalize_values(best_front, min_val, max_val)
 
         # Compute Nadir point
-        nadir_point = np.array([1.1, 1.1])
+        nadir_point = np.array([1.1, 1.1]) # Fixed for normalized PFAs
         #nadir_point = compute_nadir_point(set(best_front))
 
         for evals in eval_labels:
@@ -399,7 +414,7 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
                 column_data = []
 
                 for experiment in fronts_model_level[evals][model_operators].keys():
-                
+
                     front = fronts_model_level[evals][model_operators][experiment]
 
                     front = normalize_values(front, boundaries[evals][0], boundaries[evals][1])
@@ -407,22 +422,23 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
                     hv = compute_hypervolume(nadir_point, front)
 
                     column_data.append(hv)
-                
-                median_value = np.median(column_data)
-                median_indx = column_data.index(median_value) + 1
+
+                # Index of the median experiment - np.median() itself can
+                # interpolate between two values for an even n_experiments,
+                # which then wouldn't match any actual column_data entry.
+                median_indx = int(np.argsort(column_data)[len(column_data) // 2]) + 1
                 median_front = fronts_model_level[evals][model_operators][f"Experiment {median_indx:03d}"]
                 median_front_norm = normalize_values(median_front, boundaries[evals][0], boundaries[evals][1])
 
                 # Save median front
-                
                 write_front(median_front, os.path.join(front_save_path, f"{model_operators}.pof"))
                 write_front(median_front_norm, os.path.join(front_save_path, f"{model_operators}_norm.pof"))
 
                 data[model_operators] = column_data
-            
+
             # Write the best front
-            write_front(np.array(best_fronts[evals]), os.path.join(front_save_path, f"best_front_consolidated.pof"))
-            write_front(np.array(best_fronts_norm[evals]), os.path.join(front_save_path, f"best_front_consolidated_norm.pof"))
+            write_front(np.array(best_fronts[evals]), os.path.join(front_save_path, "best_front_consolidated.pof"))
+            write_front(np.array(best_fronts_norm[evals]), os.path.join(front_save_path, "best_front_consolidated_norm.pof"))
 
             # Make dataframe
             dataframe = pd.DataFrame(data)
@@ -451,18 +467,14 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
                 subset_df = dataframe[subset_columns]
                 subset_df.to_csv(save_path, index=False)
 
-        #new_path = os.path.join(params["RESULTS_PATH"], instance_name + ".csv")
-        #dataframe.to_csv(new_path, index=False)
-
         # Instance total time
         instance_time = time.time() - instance_start
         instance_minutes = round(instance_time / 60, 2)
         instance_hours = round(instance_time / 3600, 2)
-        
+
         print(f"\nInstance: {instance_name}, Minutes: {instance_minutes}, Hours: {instance_hours}\n")
 
     # * Now, we have K dataframes, one for each instance.
-
     program_total_time = time.time() - program_time
     minutes = round(program_total_time /60 , 4)
     hours = round(program_total_time / 3600, 4)
@@ -471,8 +483,3 @@ def run_experiments(experiment_path, results_paths, operators, overrides: dict =
 
     return params["RESULTS_PATH"]
 
-
-if __name__ == "__main__":
-    
-    # First execute the experiments, and generate data from it
-    run_experiments()
